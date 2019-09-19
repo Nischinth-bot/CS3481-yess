@@ -6,7 +6,10 @@ RegisterFileTester.o ConditionCodes.o ConditionCodesTester.o
 .C.o:
 	$(CC) $(CFLAGS) $< -o $@
 
+
 lab5: $(OBJ)
+
+Tools.o : Tools.h Tools.C
 
 clean:
 	rm $(OBJ) lab5
