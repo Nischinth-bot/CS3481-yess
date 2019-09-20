@@ -13,6 +13,10 @@ Memory * Memory::memInstance = NULL;
  */
 Memory::Memory()
 {
+    for(int i = 0 ; i < MEMSIZE; i ++)
+    {
+        mem[i] = 0;
+    }
 }
 
 /**
@@ -24,7 +28,12 @@ Memory::Memory()
  */
 Memory * Memory::getInstance()
 {
-   return NULL;
+    if(memInstance == NULL)
+    {
+        memInstance = new Memory();
+        return memInstance;
+    }
+    return memInstance;
 }
 
 /**
@@ -40,7 +49,18 @@ Memory * Memory::getInstance()
  */
 uint64_t Memory::getLong(int32_t address, bool & imem_error)
 {
-   return 0;
+    if(address >= 0 && address < MEMSIZE  && address % 8 == 0 )
+    {
+        imem_error = false;
+        uint8_t arr[8];
+        for(int i = 0; i < 8; i ++)
+        {
+            arr[i] = mem[address + i];
+        }
+        return Tools::buildLong(arr);
+    }
+    imem_error = true;
+    return 0;
 }
 
 /**
@@ -55,7 +75,13 @@ uint64_t Memory::getLong(int32_t address, bool & imem_error)
  */
 uint8_t Memory::getByte(int32_t address, bool & imem_error)
 {
-   return 0;
+    if(address >= 0 && address < MEMSIZE)
+    {
+        imem_error = false;
+        return Tools::getByte(mem[address],0);
+    }
+    imem_error = true;
+    return 0;
 }
 
 /**
@@ -71,7 +97,22 @@ uint8_t Memory::getByte(int32_t address, bool & imem_error)
  */
 void Memory::putLong(uint64_t value, int32_t address, bool & imem_error)
 {
-   return;
+    if(address >= 0 && address < MEMSIZE  && address % 8 == 0 )
+    {
+        imem_error = false;
+        int arr[8];
+        for(int i = 0; i < 8; i ++)
+        {
+            arr[i] = Tools::getByte(value,i);
+        }
+        for(int i = address; i < address + 8; i ++)
+        {
+            mem[i] = arr[i-address];
+        }
+       return;
+    }
+    imem_error = true;
+    return;
 }
 
 /**
@@ -87,7 +128,14 @@ void Memory::putLong(uint64_t value, int32_t address, bool & imem_error)
 
 void Memory::putByte(uint8_t value, int32_t address, bool & imem_error)
 {
-   return;
+    if(address >= 0 && address < MEMSIZE)
+    {
+        imem_error = false;
+        mem[address] = value;
+        return;
+    }  
+    imem_error = true;
+    return;
 }
 
 /**
@@ -99,37 +147,37 @@ void Memory::putByte(uint8_t value, int32_t address, bool & imem_error)
  */
 void Memory::dump()
 {
-   uint64_t prevLine[4] = {0, 0, 0, 0};
-   uint64_t currLine[4] = {0, 0, 0, 0};
-   int32_t i;
-   bool star = false;
-   bool mem_error;
+    uint64_t prevLine[4] = {0, 0, 0, 0};
+    uint64_t currLine[4] = {0, 0, 0, 0};
+    int32_t i;
+    bool star = false;
+    bool mem_error;
 
-   //32 bytes per line (four 8-byte words)
-   for (i = 0; i < MEMSIZE; i+=32)
-   {
-      //get the values for the current line
-      for (int32_t j = 0; j < 4; j++) currLine[j] = getLong(i+j*8, mem_error);
+    //32 bytes per line (four 8-byte words)
+    for (i = 0; i < MEMSIZE; i+=32)
+    {
+        //get the values for the current line
+        for (int32_t j = 0; j < 4; j++) currLine[j] = getLong(i+j*8, mem_error);
 
-      //if they are the same as the values in the previous line then
-      //don't display them, but always display the first line
-      if (i == 0 || currLine[0] != prevLine[0] || currLine[1] != prevLine[1] 
-          || currLine[2] != prevLine[2] || currLine[3] != prevLine[3])
-      {
-         std::cout << std::endl << std::setw(3) << std::setfill('0') 
-                   << std::hex << i << ": "; 
-         for (int32_t j = 0; j < 4; j++) 
-             std::cout << std::setw(16) << std::setfill('0') 
-                       << std::hex << currLine[j] << " ";
-         star = false;
-      } else
-      {
-         //if this line is exactly like the previous line then
-         //just print a * if one hasn't been printed already
-         if (star == false) std::cout << "*";
-         star = true;
-      }
-      for (int32_t j = 0; j < 4; j++) prevLine[j] = currLine[j];
-   }
-   std::cout << std::endl;
+        //if they are the same as the values in the previous line then
+        //don't display them, but always display the first line
+        if (i == 0 || currLine[0] != prevLine[0] || currLine[1] != prevLine[1] 
+                || currLine[2] != prevLine[2] || currLine[3] != prevLine[3])
+        {
+            std::cout << std::endl << std::setw(3) << std::setfill('0') 
+                << std::hex << i << ": "; 
+            for (int32_t j = 0; j < 4; j++) 
+                std::cout << std::setw(16) << std::setfill('0') 
+                    << std::hex << currLine[j] << " ";
+            star = false;
+        } else
+        {
+            //if this line is exactly like the previous line then
+            //just print a * if one hasn't been printed already
+            if (star == false) std::cout << "*";
+            star = true;
+        }
+        for (int32_t j = 0; j < 4; j++) prevLine[j] = currLine[j];
+    }
+    std::cout << std::endl;
 }
