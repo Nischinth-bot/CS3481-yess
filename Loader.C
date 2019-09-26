@@ -31,16 +31,17 @@
 Loader::Loader(int argc, char * argv[])
 {
    loaded = false;
-
-   //Start by writing a method that opens the file (checks whether it ends 
-   //with a .yo and whether the file successfully opens; if not, return without 
-   //loading)
-
-   //The file handle is declared in Loader.h.  You should use that and
-   //not declare another one in this file.
    
-   //Next write a simple loop that reads the file line by line and prints it out
-   
+    loaded = Loader::isValidFile(argv[1]);
+    Loader::inf.open(argv[1]);
+    loaded = Loader::inf.is_open();
+    std::string line;
+
+   Memory* mem = Memory::getInstance();  
+   while(getline(inf,line))
+   {
+     std::cout << line << '\n'; 
+   }
    //Next, add a method that will write the data in the line to memory 
    //(call that from within your loop)
 
@@ -73,3 +74,18 @@ bool Loader::isLoaded()
 //You'll need to add more helper methods to this file.  Don't put all of your code in the
 //Loader constructor.  When you add a method here, add the prototype to Loader.h in the private
 //section.
+
+
+//Returns true if file has extension ".yo" and false otherwise.
+bool Loader::isValidFile(char* s)
+{
+   char* ptr = s;
+   while(*ptr != '\0')
+   {
+        ptr ++;
+   }
+   ptr --;
+   return *ptr == 'o' && *(ptr - 1) == 'y';
+}
+
+
