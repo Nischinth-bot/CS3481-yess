@@ -1,7 +1,7 @@
 /**
- * Names:
- * Team:
-*/
+ * Names: Nischinth Murari
+ * Team:31
+ */
 #include <iostream>
 #include <fstream>
 #include <string.h>
@@ -15,6 +15,8 @@
 #define ADDREND 4     //ending column of 3 digit hext address
 #define DATABEGIN 7   //starting column of data bytes
 #define COMMENT 28    //location of the '|' character 
+
+
 
 /**
  * Loader constructor
@@ -30,33 +32,44 @@
  */
 Loader::Loader(int argc, char * argv[])
 {
-   loaded = false;
-   
-    loaded = Loader::isValidFile(argv[1]);
+    loaded = false;
+
+    if(!Loader::isValidFile(argv[1])) return;
     Loader::inf.open(argv[1]);
-    loaded = Loader::inf.is_open();
+    if(!Loader::inf.is_open()) return;
     std::string line;
+    bool error = false;
+    Memory* mem = Memory::getInstance();          
 
-   Memory* mem = Memory::getInstance();  
-   while(getline(inf,line))
-   {
-     std::cout << line << '\n'; 
-   }
-   //Next, add a method that will write the data in the line to memory 
-   //(call that from within your loop)
+    while(getline(inf,line)) 
+    {
+        const char* ptr = line.c_str();
+        if(ptr[ADDRBEGIN] != 0x20  && ptr[DATABEGIN] != 0x20)
+        {
+            int32_t addr = Loader::convert(line, ADDRBEGIN, ADDREND + 1);
+            for(int i = DATABEGIN; i < COMMENT - 2; i += 2)
+            {
+                if(ptr[i] != 0x20)
+                {
+                    int8_t data = Loader::convert(line, i, i + 2);
+                    mem->putByte(data,addr,error);
+                    addr ++;
+                }
+            }
+        }
+    }
+    //Finally, add code to check for errors in the input line.
+    //When your code finds an error, you need to print an error message and return.
+    //Since your output has to be identical to your instructor's, use this cout to print the
+    //error message.  Change the variable names if you use different ones.
+    //  std::cout << "Error on line " << std::dec << lineNumber
+    //       << ": " << line << std::endl;
 
-   //Finally, add code to check for errors in the input line.
-   //When your code finds an error, you need to print an error message and return.
-   //Since your output has to be identical to your instructor's, use this cout to print the
-   //error message.  Change the variable names if you use different ones.
-   //  std::cout << "Error on line " << std::dec << lineNumber
-   //       << ": " << line << std::endl;
 
+    //If control reaches here then no error was found and the program
+    //was loaded into memory.
+    loaded = true;  
 
-   //If control reaches here then no error was found and the program
-   //was loaded into memory.
-   loaded = true;  
-  
 }
 
 /**
@@ -67,7 +80,7 @@ Loader::Loader(int argc, char * argv[])
  */
 bool Loader::isLoaded()
 {
-   return loaded;
+    return loaded;
 }
 
 
@@ -79,13 +92,20 @@ bool Loader::isLoaded()
 //Returns true if file has extension ".yo" and false otherwise.
 bool Loader::isValidFile(char* s)
 {
-   char* ptr = s;
-   while(*ptr != '\0')
-   {
+    if(strlen(s) < 4) return 0;
+
+    char* ptr = s;
+    while(*ptr != '\0')
+    {
         ptr ++;
-   }
-   ptr --;
-   return *ptr == 'o' && *(ptr - 1) == 'y';
+    }
+    ptr --;
+    return *ptr == 'o' && *(ptr - 1) == 'y' && *(ptr - 2) == '.';
 }
 
-
+//Converts a string to hex value from index begin to index end.
+int Loader::convert(std::string l, int  begin, int end)
+{
+    std::string part = l.substr(begin, (end - begin));  
+    return std::stoul(part, 0 , 16);
+}
