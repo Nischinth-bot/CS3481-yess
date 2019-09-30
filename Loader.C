@@ -57,13 +57,13 @@ Loader::Loader(int argc, char * argv[])
         const char* ptr = line.c_str(); //get a pointer to perform offest calculations
         if(ptr[ADDRBEGIN] != 0x20  && ptr[DATABEGIN] != 0x20) //if both address field and data field are not blank
         {
-            int32_t addr = Loader::convert(line, ADDRBEGIN, ADDREND + 1); //calculate the address
+            int32_t addr = convert(line, ADDRBEGIN, ADDREND + 1); //calculate the address
             lastAddr = addr;
             for(int i = DATABEGIN; i < COMMENT - 2; i += 2) //loop to add to memory byte by byte
             {
                 if(ptr[i] != 0x20) 
                 {
-                    int8_t data = Loader::convert(line, i, i + 2);
+                    int8_t data = convert(line, i, i + 2);
                     mem->putByte(data,addr,error);
                     addr ++;
                     lastAddr ++;
@@ -136,7 +136,10 @@ bool Loader::isDataRecord(std::string line)
     {
         if(ptr[i] == 0x20) return 0;
     }
-    return ptr[ADDREND + 1] == ':' && ptr[DATABEGIN - 1] == 0x20 && ptr[COMMENT - 1] == 0X20 && ptr[COMMENT] == '|';
+    return ptr[ADDREND + 1] == ':' 
+        && ptr[DATABEGIN - 1] == 0x20 
+        && ptr[COMMENT - 1] == 0X20 
+        && ptr[COMMENT] == '|';
 }
 
 //Check if given line is valid wrt memory.
@@ -144,29 +147,51 @@ bool Loader::isValidAddress(std::string line)
 {
     const char* ptr = line.c_str();
     if (ptr[ADDRBEGIN] == 0X20) return 0;
-    int32_t addr = Loader::convert(line, ADDRBEGIN, ADDREND + 1); //calculate the address
-    return addr >= lastAddr && (addr + Loader::getDataSize(line) < MEMSIZE);
+    int32_t addr = convert(line, ADDRBEGIN, ADDREND + 1); //calculate the address
+
+    return addr >= lastAddr 
+        && (addr + getDataSize(line) < MEMSIZE);
 }
+
+
 //Returns true if line has valid memory state and is either a comment record or a data record.
 bool Loader::hasErrors(std::string line)
 {
-    return !(Loader::isCommentRecord(line) ^ Loader::isDataRecord(line) && isValidData(line)); 
+    return !((isCommentRecord(line) 
+                ^ isDataRecord(line)) 
+            && isValidData(line));
+
 }
 
-//Gets the number of bytes in the data section of a line
+//Gets the number of hex digits in the data section of a line
 int Loader::getDataSize(std::string line)
 {
-    int count = 0;
     const char* ptr = line.c_str();
-    for(int i = DATABEGIN; i < COMMENT - 2; i += 2)
+    const char* trav = &ptr[DATABEGIN];
+    int count = 0;
+    while (*trav != 0x20)
     {
-        if(ptr[i] == 0x20) return count;
+        trav ++;
         count ++;
     }
     return count;
 }
 
-//Checks if data is ordered properly. No spaces in between bytes.
+bool Loader::isHexData(std::string line)
+{
+    const char* ptr = line.c_str();
+    int dataSize = getDataSize(line);
+    for(int i = DATABEGIN; i < DATABEGIN + dataSize ; i ++)
+    {
+       
+        if (isxdigit((int)ptr[i]) == 0) return 0;
+
+    }
+    return 1;
+}
+
+//Checks if data is ordered properly. No spaces in between bytes. Length of bytes should be even. Data should be hex. 
+//Returns true if all conditions are met.
 bool Loader::isValidData(std::string line)
 {
     const char* ptr = line.c_str();
@@ -180,17 +205,17 @@ bool Loader::isValidData(std::string line)
     else
     {
         for(int i = DATABEGIN + 1; i < COMMENT; i ++) //otherwise if at somepoint there is whitespace
-                                                      // make sure there are no characters after it has occured.
+            // make sure there are no characters after it has occured.
         {
             if(ptr[i] == 0x20)
             {
                 for(int j = i; j < COMMENT; j ++)
                 {
                     if(ptr[j] != 0x20) return 0;
-                 }
+                }
             }
         }
-    }
-    return 1; //if here return true.
+    }     
+    return 1 && (getDataSize(line) % 2 == 0) && isHexData(line); 
 }
 

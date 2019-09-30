@@ -12,6 +12,8 @@ class Loader
       bool isValidAddress(std::string line);
       bool hasErrors(std::string line);
       bool isValidData(std::string line);
+      bool isHexData(std::string line);
+
       int getDataSize(std::string line);
       int convert(std::string s, int begin, int end);  
 };
