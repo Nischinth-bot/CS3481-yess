@@ -16,6 +16,7 @@
 #define DATABEGIN 7   //starting column of data bytes
 #define COMMENT 28    //location of the '|' character 
 
+int32_t lastAddr = 0;
 
 
 /**
@@ -37,19 +38,29 @@ Loader::Loader(int argc, char * argv[])
     if(!Loader::isValidFile(argv[1])) return;
     Loader::inf.open(argv[1]);
     if(!Loader::inf.is_open()) return;
+    
     std::string line;
     bool error = false;
     Memory* mem = Memory::getInstance();          
+    int lineNumber = 1;
 
     while(getline(inf,line)) 
     {
-        const char* ptr = line.c_str();
-        if(ptr[ADDRBEGIN] != 0x20  && ptr[DATABEGIN] != 0x20)
+        if (hasErrors(line)) 
         {
-            int32_t addr = Loader::convert(line, ADDRBEGIN, ADDREND + 1);
-            for(int i = DATABEGIN; i < COMMENT - 2; i += 2)
+            std::cout << "Error on line " << std::dec << lineNumber
+                << ": " << line << std::endl;
+            return;
+        }
+        
+        const char* ptr = line.c_str(); //get a pointer to perform offest calculations
+        if(ptr[ADDRBEGIN] != 0x20  && ptr[DATABEGIN] != 0x20) //if both address field and data field are not blank
+        {
+            int32_t addr = Loader::convert(line, ADDRBEGIN, ADDREND + 1); //calculate the address
+
+            for(int i = DATABEGIN; i < COMMENT - 2; i += 2) //loop to add to memory byte by byte
             {
-                if(ptr[i] != 0x20)
+                if(ptr[i] != 0x20) 
                 {
                     int8_t data = Loader::convert(line, i, i + 2);
                     mem->putByte(data,addr,error);
@@ -57,15 +68,9 @@ Loader::Loader(int argc, char * argv[])
                 }
             }
         }
+        lineNumber ++;
     }
-    //Finally, add code to check for errors in the input line.
-    //When your code finds an error, you need to print an error message and return.
-    //Since your output has to be identical to your instructor's, use this cout to print the
-    //error message.  Change the variable names if you use different ones.
-    //  std::cout << "Error on line " << std::dec << lineNumber
-    //       << ": " << line << std::endl;
-
-
+    
     //If control reaches here then no error was found and the program
     //was loaded into memory.
     loaded = true;  
@@ -109,3 +114,40 @@ int Loader::convert(std::string l, int  begin, int end)
     std::string part = l.substr(begin, (end - begin));  
     return std::stoul(part, 0 , 16);
 }
+
+//Check if given line is a comment record.
+bool Loader::isCommentRecord(std::string line)
+{
+    const char* ptr = line.c_str();
+    for(int i = 0; i < COMMENT - 1; i ++)
+    {
+        if(ptr[i] != 0x20) return 0;
+    }
+    return ptr[COMMENT] == '|';
+}
+
+//Check if given line is a data record.
+bool Loader::isDataRecord(std::string line)
+{
+    const char* ptr = line.c_str();
+    for(int i = 0; i < ADDREND; i ++)
+    {
+        if(ptr[i] == 0x20) return 0;
+    }
+    return ptr[ADDREND + 1] == ':' && ptr[DATABEGIN - 1] == 0x20 && ptr[COMMENT - 1] == 0X20 && ptr[COMMENT] == '|';
+}
+
+//Check if given line is valid wrt memory.
+bool Loader::isValidMemory(std::string line)
+{
+    const char* ptr = line.c_str();
+    if (ptr[ADDRBEGIN] == 0X20) return 0;
+    int32_t addr = Loader::convert(line, ADDRBEGIN, ADDREND + 1); //calculate the address
+    return addr >= lastAddr;
+}
+//Returns true if line has valid memory state and is either a comment record or a data record.
+bool Loader::hasErrors(std::string line)
+{
+  return !(Loader::isCommentRecord(line) ^ Loader::isDataRecord(line));
+}
+

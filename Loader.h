@@ -7,5 +7,9 @@ class Loader
    public:
       Loader(int argc, char * argv[]);
       bool isLoaded();
+      bool isCommentRecord(std::string line);
+      bool isDataRecord(std::string line);
+      bool isValidMemory(std::string line);
+      bool hasErrors(std::string line);
       int convert(std::string s, int begin, int end); 
 };
