@@ -38,11 +38,13 @@ Loader::Loader(int argc, char * argv[])
     if(!Loader::isValidFile(argv[1])) return;
     Loader::inf.open(argv[1]);
     if(!Loader::inf.is_open()) return;
-    
+
     std::string line;
     bool error = false;
     Memory* mem = Memory::getInstance();          
     int lineNumber = 1;
+
+    int lastAddr = 0x0;
 
     while(getline(inf,line)) 
     {
@@ -52,12 +54,11 @@ Loader::Loader(int argc, char * argv[])
                 << ": " << line << std::endl;
             return;
         }
-        
         const char* ptr = line.c_str(); //get a pointer to perform offest calculations
         if(ptr[ADDRBEGIN] != 0x20  && ptr[DATABEGIN] != 0x20) //if both address field and data field are not blank
         {
             int32_t addr = Loader::convert(line, ADDRBEGIN, ADDREND + 1); //calculate the address
-
+            lastAddr = addr;
             for(int i = DATABEGIN; i < COMMENT - 2; i += 2) //loop to add to memory byte by byte
             {
                 if(ptr[i] != 0x20) 
@@ -65,12 +66,13 @@ Loader::Loader(int argc, char * argv[])
                     int8_t data = Loader::convert(line, i, i + 2);
                     mem->putByte(data,addr,error);
                     addr ++;
+                    lastAddr ++;
                 }
             }
         }
         lineNumber ++;
     }
-    
+
     //If control reaches here then no error was found and the program
     //was loaded into memory.
     loaded = true;  
@@ -138,16 +140,57 @@ bool Loader::isDataRecord(std::string line)
 }
 
 //Check if given line is valid wrt memory.
-bool Loader::isValidMemory(std::string line)
+bool Loader::isValidAddress(std::string line)
 {
     const char* ptr = line.c_str();
     if (ptr[ADDRBEGIN] == 0X20) return 0;
     int32_t addr = Loader::convert(line, ADDRBEGIN, ADDREND + 1); //calculate the address
-    return addr >= lastAddr;
+    return addr >= lastAddr && (addr + Loader::getDataSize(line) < MEMSIZE);
 }
 //Returns true if line has valid memory state and is either a comment record or a data record.
 bool Loader::hasErrors(std::string line)
 {
-  return !(Loader::isCommentRecord(line) ^ Loader::isDataRecord(line));
+    return !(Loader::isCommentRecord(line) ^ Loader::isDataRecord(line) && isValidData(line)); 
+}
+
+//Gets the number of bytes in the data section of a line
+int Loader::getDataSize(std::string line)
+{
+    int count = 0;
+    const char* ptr = line.c_str();
+    for(int i = DATABEGIN; i < COMMENT - 2; i += 2)
+    {
+        if(ptr[i] == 0x20) return count;
+        count ++;
+    }
+    return count;
+}
+
+//Checks if data is ordered properly. No spaces in between bytes.
+bool Loader::isValidData(std::string line)
+{
+    const char* ptr = line.c_str();
+    if(ptr[DATABEGIN] == 0x20) //if the first character is a whitespace, then there should be no other characters
+    {
+        for(int i = DATABEGIN + 1; i < COMMENT; i ++)
+        {
+            if(ptr[i] != 0x20) return 0;
+        }
+    }
+    else
+    {
+        for(int i = DATABEGIN + 1; i < COMMENT; i ++) //otherwise if at somepoint there is whitespace
+                                                      // make sure there are no characters after it has occured.
+        {
+            if(ptr[i] == 0x20)
+            {
+                for(int j = i; j < COMMENT; j ++)
+                {
+                    if(ptr[j] != 0x20) return 0;
+                 }
+            }
+        }
+    }
+    return 1; //if here return true.
 }
 

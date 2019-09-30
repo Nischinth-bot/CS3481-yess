@@ -9,7 +9,9 @@ class Loader
       bool isLoaded();
       bool isCommentRecord(std::string line);
       bool isDataRecord(std::string line);
-      bool isValidMemory(std::string line);
+      bool isValidAddress(std::string line);
       bool hasErrors(std::string line);
-      int convert(std::string s, int begin, int end); 
+      bool isValidData(std::string line);
+      int getDataSize(std::string line);
+      int convert(std::string s, int begin, int end);  
 };
