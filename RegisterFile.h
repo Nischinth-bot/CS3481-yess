@@ -1,8 +1,5 @@
 #define REGSIZE 15  //size of register file
-//Register numbers of Y86 registers
-//When a special register, such as RSP, is
-//accessed in the code, RSP instead of 4
-//is used in the call.
+//register numbers of Y86 registers
 #define RAX 0
 #define RCX 1
 #define RDX 2
