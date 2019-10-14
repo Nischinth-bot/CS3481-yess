@@ -1,4 +1,4 @@
-/*
+/*L
  * Names: Nischinth Murari
  * Team:31
  */
@@ -16,7 +16,7 @@
 #define DATABEGIN 7   //starting column of data bytes
 #define COMMENT 28    //location of the '|' character 
 
-static int32_t lastAddr = 0x0;
+int32_t lastAddr = 0x0;
 
 /**
  * Loader constructor
@@ -42,7 +42,7 @@ Loader::Loader(int argc, char * argv[])
     bool error = false;
     Memory* mem = Memory::getInstance();          
     int lineNumber = 1;
-
+    
     while(getline(inf,line)) 
     {
         if (hasErrors(line)) 
@@ -143,7 +143,7 @@ bool Loader::isValidAddress(std::string line)
         std::string addr = line.substr(ADDRBEGIN, 3);
         int32_t addrNum = convert(line,ADDRBEGIN, ADDREND + 1); 
         return line[0] == 48 && line[1] == 'x' && isHexAddr(addr)
-            && addrNum >= lastAddr && (addrNum + (getDataSize(line)/2) <= MEMSIZE);
+        && addrNum >= lastAddr && (addrNum + (getDataSize(line)/2) <= MEMSIZE);
     }
     return 1;
 }
@@ -189,6 +189,7 @@ bool Loader::isHexData(std::string line)
 //C
 bool Loader::isHexAddr(std::string addr)
 {
+    if(addr.length() < 3) return 0;
     for(int i = 0; i < 3; i ++)
     {
         if(!isxdigit(addr[i])) return 0;
