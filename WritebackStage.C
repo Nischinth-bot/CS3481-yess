@@ -4,6 +4,7 @@
 #include "PipeRegField.h"
 #include "PipeReg.h"
 #include "F.h"
+#include "E.h"
 #include "D.h"
 #include "M.h"
 #include "W.h"
@@ -24,7 +25,8 @@
  */
 bool WritebackStage::doClockLow(PipeReg ** pregs, Stage ** stages)
 {
-    return 0;
+    doClockHigh(pregs);
+    return 1;
 }
 
 /* doClockHigh
@@ -37,3 +39,4 @@ void WritebackStage::doClockHigh(PipeReg ** pregs)
 {
     
 }
+
