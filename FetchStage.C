@@ -1,5 +1,7 @@
 #include <string>
 #include <cstdint>
+#include "Memory.h"
+#include "Tools.h"
 #include "RegisterFile.h"
 #include "PipeRegField.h"
 #include "PipeReg.h"
@@ -11,7 +13,7 @@
 #include "FetchStage.h"
 #include "Status.h"
 #include "Debug.h"
-
+#include "Instructions.h"
 
 /*
  * doClockLow:
@@ -24,24 +26,112 @@
  */
 bool FetchStage::doClockLow(PipeReg ** pregs, Stage ** stages)
 {
-   F * freg = (F *) pregs[FREG];
-   D * dreg = (D *) pregs[DREG];
-   uint64_t f_pc = 0, icode = 0, ifun = 0, valC = 0, valP = 0;
-   uint64_t rA = RNONE, rB = RNONE, stat = SAOK;
+    F * freg = (F *) pregs[FREG];
+    D * dreg = (D *) pregs[DREG];
 
-   //code missing here to select the value of the PC
-   //and fetch the instruction from memory
-   //Fetching the instruction will allow the icode, ifun,
-   //rA, rB, and valC to be set.
-   //The lab assignment describes what methods need to be
-   //written.
+    uint64_t f_pc = 0, icode = 0, ifun = 0, valC = 0, valP = 0;
+    uint64_t rA = RNONE, rB = RNONE, stat = SAOK;
 
-   //The value passed to setInput below will need to be changed
-   freg->getpredPC()->setInput(f_pc + 1);
+    bool error = false;
+    f_pc = selectPC((F*)pregs[FREG],(M*)pregs[MREG], (W*)pregs[WREG]);
 
-   //provide the input values for the D register
-   setDInput(dreg, stat, icode, ifun, rA, rB, valC, valP);
-   return false;
+    Memory* mem = Memory::getInstance();
+    
+    while(icode != INOP && icode != IHALT && !error)
+    {
+    uint64_t instr = mem->getLong(f_pc,error); 
+    if(error) {return 1;}
+    uint64_t byte1 = Tools::getByte(instr, 0);   
+    icode = Tools::getBits(byte1,0,3);    
+    ifun = Tools::getBits(byte1,4,7);
+    }
+   
+    bool nregids = FetchStage::need_regids(icode);
+    bool nvalC = FetchStage::needValC(icode);
+
+    valP = FetchStage::PCincrement(f_pc,nregids,nvalC);
+    uint64_t predicted_pc = FetchStage::predictPC(ifun, valC, valP);
+
+    //The value passed to setInput below will need to be changed
+    freg->getpredPC()->setInput(predicted_pc);
+
+    //provide the input values for the D register
+    setDInput(dreg, stat, icode, ifun, rA, rB, valC, valP);
+    return false;
+}
+
+/**
+ * selectPC
+ * Simulator of the selectPC HCL
+ * @param: Freg - Pointer to an instance of Fetch register class
+ * @param: Mreg - Pointer to an instance of Memory register class
+ * @param: Wreg - Pointer to an intance of Write register class
+ * @return: Correct PC value for execution of next instruction
+ */
+uint64_t FetchStage::selectPC(F* freg, M* mreg, W* wreg)
+{
+    if(mreg->geticode()->getOutput() == IJXX && !mreg->getCnd()->getOutput()) 
+    {
+        return mreg->getvalA()->getOutput();
+    }
+    if(wreg->geticode()->getOutput() == IRET)
+    {
+        return wreg->getvalM()->getOutput();
+    }
+    return freg->getpredPC()->getOutput();
+}
+
+/**
+ * need_regids
+ * Simulator of the need_regids HCL
+ * @param: f_icode
+ * @return: true if f_icode denotes an instruction that needs registers
+ */
+bool FetchStage::need_regids(uint64_t f_icode)
+{
+    uint64_t checkArray[NUM_REGIDS] = {IRRMOVQ, IOPQ, IPUSHQ, IPOPQ, IIRMOVQ, IRMMOVQ, IMRMOVQ};
+    for (uint64_t ID : checkArray)
+        if(f_icode == ID) return 1;
+    return 0;    
+}
+/**
+ * needValC
+ * Simulator of the need_regids HCL
+ * @param: f_icode
+ * @return: true if f_icode denotes an instruction that needs valC
+ */
+bool FetchStage::needValC(uint64_t f_icode)
+{
+    uint64_t checkArray[NUM_VALC] = {IIRMOVQ, IRMMOVQ, IMRMOVQ, IJXX, ICALL};
+    for (uint64_t ID : checkArray)
+        if(f_icode == ID) return 1;
+    return 0;    
+}
+
+
+/**
+ *
+ */
+uint64_t FetchStage::PCincrement(uint64_t f_pc, bool nregids, bool nvalc)
+{
+    int increment = 0;
+    if(nregids) increment += 1;
+    if(nvalc) increment += 8;
+    return (f_pc + increment);
+}
+
+/**
+ *predPC
+ *Simulator of the predPC HCL
+ *@param: f_icode, f_valC, f_valP
+ *@return: the correct PC value 
+ */
+uint64_t FetchStage::predictPC(uint64_t f_icode, uint64_t f_valC, uint64_t f_valP)
+{
+    uint64_t checkArray[NUM_PREDPC] = {IJXX, ICALL};
+    for (uint64_t ID : checkArray)
+        if(f_icode == ID) return f_valC;
+    return f_valP;
 }
 
 /* doClockHigh
@@ -52,17 +142,17 @@ bool FetchStage::doClockLow(PipeReg ** pregs, Stage ** stages)
  */
 void FetchStage::doClockHigh(PipeReg ** pregs)
 {
-   F * freg = (F *) pregs[FREG];
-   D * dreg = (D *) pregs[DREG];
+    F * freg = (F *) pregs[FREG];
+    D * dreg = (D *) pregs[DREG];
 
-   freg->getpredPC()->normal();
-   dreg->getstat()->normal();
-   dreg->geticode()->normal();
-   dreg->getifun()->normal();
-   dreg->getrA()->normal();
-   dreg->getrB()->normal();
-   dreg->getvalC()->normal();
-   dreg->getvalP()->normal();
+    freg->getpredPC()->normal();
+    dreg->getstat()->normal();
+    dreg->geticode()->normal();
+    dreg->getifun()->normal();
+    dreg->getrA()->normal();
+    dreg->getrB()->normal();
+    dreg->getvalC()->normal();
+    dreg->getvalP()->normal();
 }
 
 /* setDInput
@@ -77,17 +167,17 @@ void FetchStage::doClockHigh(PipeReg ** pregs)
  * @param: rB - value to be stored in the rB pipeline register within D
  * @param: valC - value to be stored in the valC pipeline register within D
  * @param: valP - value to be stored in the valP pipeline register within D
-*/
+ */
 void FetchStage::setDInput(D * dreg, uint64_t stat, uint64_t icode, 
-                           uint64_t ifun, uint64_t rA, uint64_t rB,
-                           uint64_t valC, uint64_t valP)
+        uint64_t ifun, uint64_t rA, uint64_t rB,
+        uint64_t valC, uint64_t valP)
 {
-   dreg->getstat()->setInput(stat);
-   dreg->geticode()->setInput(icode);
-   dreg->getifun()->setInput(ifun);
-   dreg->getrA()->setInput(rA);
-   dreg->getrB()->setInput(rB);
-   dreg->getvalC()->setInput(valC);
-   dreg->getvalP()->setInput(valP);
+    dreg->getstat()->setInput(stat);
+    dreg->geticode()->setInput(icode);
+    dreg->getifun()->setInput(ifun);
+    dreg->getrA()->setInput(rA);
+    dreg->getrB()->setInput(rB);
+    dreg->getvalC()->setInput(valC);
+    dreg->getvalP()->setInput(valP);
 }
-     
+

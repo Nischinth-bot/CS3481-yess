@@ -25,23 +25,11 @@
  */
 bool DecodeStage::doClockLow(PipeReg ** pregs, Stage ** stages)
 {
-   D * dreg = (D *) pregs[FREG];
-   E * ereg = (E *) pregs[DREG];
-   uint64_t icode = 0, ifun = 0, valC = 0;
-   uint64_t dstE = RNONE, dstM = RNONE, srcA = RNONE, srcB = RNONE, stat = SAOK;
-
- 
-   //code missing here to select the value of the PC
-   //and fetch the instruction from memory
-   //Fetching the instruction will allow the icode, ifun,
-   //rA, rB, and valC to be set.
-   //The lab assignment describes what methods need to be
-   //written.
-
-   //The value passed to setInput below will need to be changed
+   D * dreg = (D *) pregs[DREG];
+   E * ereg = (E *) pregs[EREG];
    
-
-   //provide the input values for the E register
+   uint64_t icode = 0, ifun = 0, valC = 0;
+   uint64_t dstE = RNONE, dstM = RNONE, srcA = RNONE, srcB = RNONE, stat = SAOK; 
    
    icode = dreg-> geticode()-> getOutput();
    ifun = dreg-> getifun()-> getOutput();
@@ -61,8 +49,8 @@ bool DecodeStage::doClockLow(PipeReg ** pregs, Stage ** stages)
  */
 void DecodeStage::doClockHigh(PipeReg ** pregs)
 {
-   D * dreg = (D *) pregs[FREG];
-   E * ereg = (E *) pregs[DREG];
+   D * dreg = (D *) pregs[DREG];
+   E * ereg = (E *) pregs[EREG];
 
    ereg->getstat()->normal();
    ereg->geticode()->normal();

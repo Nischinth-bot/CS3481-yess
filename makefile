@@ -37,6 +37,6 @@ clean:
 
 run:
 	make clean
-	make lab6
+	make yess
 	./run.sh
 
