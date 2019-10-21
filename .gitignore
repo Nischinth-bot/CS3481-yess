@@ -1,6 +1,7 @@
 *.o
 lab5
-asumr.yo
+*.yo
 lab6
+yess
 *.sdump
 *.idump
