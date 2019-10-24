@@ -29,33 +29,25 @@ bool FetchStage::doClockLow(PipeReg ** pregs, Stage ** stages)
     F * freg = (F *) pregs[FREG];
     D * dreg = (D *) pregs[DREG];
 
-    uint64_t f_pc = 0, icode = 0, ifun = 0, valC = 0, valP = 0;
+    uint64_t icode = 0, ifun = 0, valC = 0, valP = 0;
     uint64_t rA = RNONE, rB = RNONE, stat = SAOK;
 
-    bool error = false;
-    f_pc = selectPC((F*)pregs[FREG],(M*)pregs[MREG], (W*)pregs[WREG]);
+    uint64_t f_pc = selectPC((F*)pregs[FREG],(M*)pregs[MREG], (W*)pregs[WREG]);
 
     Memory* mem = Memory::getInstance();
+    bool error = false;
+
+    uint64_t instr = mem->getByte(f_pc,error); 
+    icode = Tools::getBits(instr,0,3);    
+    ifun = Tools::getBits(instr,4,7);
     
-    while(icode != INOP && icode != IHALT && !error)
-    {
-    uint64_t instr = mem->getLong(f_pc,error); 
-    if(error) {return 1;}
-    uint64_t byte1 = Tools::getByte(instr, 0);   
-    icode = Tools::getBits(byte1,0,3);    
-    ifun = Tools::getBits(byte1,4,7);
-    }
-   
     bool nregids = FetchStage::need_regids(icode);
     bool nvalC = FetchStage::needValC(icode);
 
     valP = FetchStage::PCincrement(f_pc,nregids,nvalC);
-    uint64_t predicted_pc = FetchStage::predictPC(ifun, valC, valP);
+    f_pc = FetchStage::predictPC(icode, valC, valP);
 
-    //The value passed to setInput below will need to be changed
-    freg->getpredPC()->setInput(predicted_pc);
-
-    //provide the input values for the D register
+    freg->getpredPC()->setInput(f_pc);
     setDInput(dreg, stat, icode, ifun, rA, rB, valC, valP);
     return false;
 }
@@ -114,7 +106,7 @@ bool FetchStage::needValC(uint64_t f_icode)
  */
 uint64_t FetchStage::PCincrement(uint64_t f_pc, bool nregids, bool nvalc)
 {
-    int increment = 0;
+    int increment = 1;
     if(nregids) increment += 1;
     if(nvalc) increment += 8;
     return (f_pc + increment);
