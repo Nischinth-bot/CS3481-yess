@@ -44,7 +44,6 @@ Loader::Loader(int argc, char * argv[])
     Memory* mem = Memory::getInstance();          
     int lineNumber = 1;
 
-    int lastAddr = 0x0;
 
     while(getline(inf,line)) 
     {
@@ -142,15 +141,25 @@ bool Loader::isDataRecord(std::string line)
         && ptr[COMMENT] == '|';
 }
 
-//Check if given line is valid wrt memory.
+//Check if the address field is valid
 bool Loader::isValidAddress(std::string line)
 {
-    const char* ptr = line.c_str();
-    if (ptr[ADDRBEGIN] == 0X20) return 0;
-    int32_t addr = convert(line, ADDRBEGIN, ADDREND + 1); //calculate the address
+    if(isCommentRecord(line)) return 1;
 
-    return addr >= lastAddr 
-        && (addr + getDataSize(line) < MEMSIZE);
+    if(isDataRecord(line))
+    {
+    const char* ptr = line.c_str();
+    if (ptr[0] != 0x30) return 0;
+    if (ptr[1] != 'x') return 0;
+    
+    int32_t addr = convert(line, ADDRBEGIN, ADDREND + 1); //calculate the address
+    
+    return ((addr >= lastAddr) 
+        && (getDataSize(line) + addr  < MEMSIZE)
+        && (isHexAddr(line)));
+    }
+    
+    return 0;
 }
 
 
@@ -159,8 +168,7 @@ bool Loader::hasErrors(std::string line)
 {
     return !((isCommentRecord(line) 
                 ^ isDataRecord(line)) 
-            && isValidData(line));
-
+            && isValidData(line) && isValidAddress(line));
 }
 
 //Gets the number of hex digits in the data section of a line
@@ -177,17 +185,36 @@ int Loader::getDataSize(std::string line)
     return count;
 }
 
+/**
+ * Checks if the data field is all hex values
+ */
 bool Loader::isHexData(std::string line)
 {
     const char* ptr = line.c_str();
     int dataSize = getDataSize(line);
+
     for(int i = DATABEGIN; i < DATABEGIN + dataSize ; i ++)
     {
-       
+
         if (isxdigit((int)ptr[i]) == 0) return 0;
 
     }
     return 1;
+}
+
+
+/**
+ * Checks if the addr field is all hex values
+ *
+ */
+bool Loader::isHexAddr(std::string line)
+{
+    const char* ptr = line.c_str();
+    for(int i = ADDRBEGIN; i < ADDREND;  i ++)
+    {
+        if(isxdigit((int)ptr[i]) == 0) return 0;
+     }
+     return 1;
 }
 
 //Checks if data is ordered properly. No spaces in between bytes. Length of bytes should be even. Data should be hex. 
