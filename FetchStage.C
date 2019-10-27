@@ -30,7 +30,7 @@ bool FetchStage::doClockLow(PipeReg ** pregs, Stage ** stages)
     D * dreg = (D *) pregs[DREG];
 
     uint64_t icode = 0, ifun = 0, valC = 0, valP = 0;
-    uint64_t rA = RNONE, rB = RNONE, stat = SAOK;
+    uint8_t rA = RNONE, rB = RNONE, stat = SAOK;
 
     uint64_t f_pc = selectPC((F*)pregs[FREG],(M*)pregs[MREG], (W*)pregs[WREG]);
 
@@ -40,12 +40,16 @@ bool FetchStage::doClockLow(PipeReg ** pregs, Stage ** stages)
     uint64_t instr = mem->getByte(f_pc,error); 
     ifun = Tools::getBits(instr,0,3);    
     icode = Tools::getBits(instr,4,7);
-    
-    bool nregids = FetchStage::need_regids(icode);
-    bool nvalC = FetchStage::needValC(icode);
 
-    valP = FetchStage::PCincrement(f_pc,nregids,nvalC);
-    f_pc = FetchStage::predictPC(icode, valC, valP);
+    bool nregids = need_regids(icode);
+    bool nvalC = needValC(icode);
+
+    valP = PCincrement(f_pc,nregids,nvalC);
+    if(needValC(icode)) valC = buildValC(f_pc, icode);
+    if(need_regids(icode)) getRegIds(f_pc, icode, rA, rB);
+
+    f_pc = predictPC(icode, valC, valP);
+
 
     freg->getpredPC()->setInput(f_pc);
     setDInput(dreg, stat, icode, ifun, rA, rB, valC, valP);
@@ -173,3 +177,43 @@ void FetchStage::setDInput(D * dreg, uint64_t stat, uint64_t icode,
     dreg->getvalP()->setInput(valP);
 }
 
+/**
+ * Method sets rA and rB to the appropriate values if required.
+ * @param: f_pc - The address of the program counter.
+ * @param: icode - The icode of the instruction.
+ * @param: rA - A reference to the rA field.
+ * @param: rB - A reference to the rB field.
+ */
+void FetchStage::getRegIds(uint64_t f_pc, uint8_t icode, uint8_t &rA, uint8_t &rB)
+{
+    if(need_regids(icode))
+    {
+        bool error = false;
+        Memory* mem = Memory::getInstance();
+        uint8_t regByte  = mem->getByte(f_pc + 1, error);
+        rB = Tools::getBits(regByte, 0, 3);
+        rA = Tools::getBits(regByte, 4, 7);
+
+    }
+    return;
+}
+
+/**
+ *@param: f_pc - The current address of the program counter.
+ @param: icode - The icode of the current instruction
+ @return: valC - an 8 byte constant word
+ */
+uint64_t FetchStage::buildValC(uint64_t f_pc, uint8_t icode)
+{
+    uint8_t byteArray[8] = {0};
+    Memory* mem = Memory::getInstance();
+    bool error = false;
+    uint8_t wordIndex = f_pc + 2;
+    if(icode == IJXX || icode == ICALL) {wordIndex --;}
+    uint8_t j = 0;
+    for(int i = wordIndex; i < (wordIndex + 8); i ++)
+    {
+        byteArray[j++] = mem->getByte(i, error);
+    }
+    return Tools::buildLong(byteArray);
+}

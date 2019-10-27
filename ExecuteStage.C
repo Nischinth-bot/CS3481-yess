@@ -13,7 +13,6 @@
 #include "Status.h"
 #include "Debug.h"
 
-
 /*
  * doClockLow:
  * Performs the Fetch stage combinational logic that is performed when
@@ -28,12 +27,15 @@ bool ExecuteStage::doClockLow(PipeReg ** pregs, Stage ** stages)
     E * ereg = (E *) pregs[EREG];
     M * mreg = (M *) pregs[MREG];
     
-    uint64_t stat = SAOK, icode = 0, dstM = RNONE, dstE = RNONE;
+
+    uint64_t stat = SAOK, icode = 0, Cnd = 0, valE = 0, valA = 0, dstM = RNONE, dstE = RNONE;
     stat = ereg->getstat()->getOutput();
     icode = ereg->geticode()->getOutput();
     dstM = ereg->getdstM()->getOutput();
+    dstE = ereg->getdstE()->getOutput();
+    valE = ereg->getvalC()->getOutput();
 
-    setMInput(mreg, stat, icode, 0, 0, 0, dstE, dstM);
+    setMInput(mreg, stat, icode, Cnd, valE, valA, dstE, dstM);
     return 0;
 }
 
