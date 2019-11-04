@@ -1,0 +1,61 @@
+.pos 0
+
+irmovq 1, %rax      #Move 1 into %rax
+
+xorq %rcx, %rcx     #%rcx <- 0
+addq %rax, %rcx     #rax <- rcx
+addq %rcx, %rcx     #%rcx <- %rcx + %rcx
+
+xorq %rdx, %rdx     #%rdx <- 0
+addq %rcx, %rdx     #%rdx <- %rax
+addq %rdx, %rdx     #%rdx <- %rdx + %rdx
+
+xorq %rbx, %rbx
+addq %rdx, %rbx     #%rbx <- %rdx
+addq %rbx, %rbx     #%rbx <- %rbx + %rbx
+
+xorq %rsp, %rsp
+addq %rbx, %rsp     #%rsp <- %rbx
+addq %rsp, %rsp     #%rsp <- %rsp + %rsp
+
+xorq %rbp, %rbp
+addq %rsp, %rbp     #%rbp <- %rsp
+addq %rbp, %rbp     #%rbp <- %rbp + %rbp
+
+xorq %rsi, %rsi
+addq %rbp, %rsi     #%rsi <- %rbp
+addq %rsi, %rsi     #%rsi <- %rsi + %rsi
+
+xorq %rdi, %rdi
+addq %rsi, %rdi     #%rdi <- %rsi
+addq %rdi, %rdi     #%rdi <- %rdi + %rdi
+
+xorq %r8, %r8
+addq %rdi, %r8      #%r8 <- %rdi
+addq %r8, %r8     #%rdi <- %rdi + %rdi
+
+xorq %r9, %r9
+addq %r8, %r9       #%r9 <- %r8
+addq %r9, %r9       #%r9 <- %r9 + %r9
+
+xorq %r10, %r10
+addq %r9, %r10      #%r10 <- %r9
+addq %r10, %r10     #%r10 <- %r10 + %r10
+
+xorq %r11, %r11
+addq %r10, %r11     #%r10 <- %r11
+addq %r11, %r11     #%r11 <- %r11 + %r11
+
+xorq %r12, %r12
+addq %r11, %r12     #%r12 <- %r11
+addq %r12, %r12     #%r12 <- %r12 + %r12
+
+xorq %r13, %r13
+addq %r12, %r13     #%r13 <- %r12
+addq %r13, %r13     #%r13 <- %r13 + %r13
+
+xorq %r14, %r14
+addq %r13, %r14   #%r14 <- %r13
+addq %r14, %r14     #%r14 <- %r14 + %r14
+
+halt
