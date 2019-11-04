@@ -13,11 +13,14 @@
 #include "Status.h"
 #include "Debug.h"
 #include "Instructions.h"
-#include "ConditionCodes.h"
 #include "Tools.h"
+#include "ConditionCodes.h"
 
-void clearCC(ConditionCodes* codes);
+void clearCC(ConditionCodes* codes); //LOCAL HELPER METHOD
+
 bool Cnd = false;
+int64_t valE = 0;
+uint8_t dstE = RNONE;
 
 /*
  * doClockLow:
@@ -34,7 +37,8 @@ bool ExecuteStage::doClockLow(PipeReg ** pregs, Stage ** stages)
     M * mreg = (M *) pregs[MREG];
 
 
-    uint64_t stat = SAOK, icode = 0, valE = 0, valA = 0, dstM = RNONE, dstE = RNONE;
+    uint64_t stat = SAOK, icode = 0, dstM = RNONE, dstE = RNONE;
+    int64_t valA = 0;
     stat = ereg->getstat()->getOutput();
     icode = ereg->geticode()->getOutput();
     dstM = ereg->getdstM()->getOutput();
@@ -45,7 +49,6 @@ bool ExecuteStage::doClockLow(PipeReg ** pregs, Stage ** stages)
     {
         CC(ereg, valE);
     }
-
     valA = ereg->getvalA()->getOutput();
     setMInput(mreg, stat, icode, Cnd, valE, valA, dstE, dstM);
     return 0;
@@ -207,13 +210,24 @@ int64_t ExecuteStage::ALU(E* ereg)
     uint8_t ifun = aluFUN(ereg);
     switch(ifun)
     {
-        case 1 : return A - B; //SUBQ
-        case 2:  return A & B; //ANDQ
-        case 3:  return A ^ B; //XORQ 
+        case 1 : return B - A; //SUBQ
+        case 2:  return B & A; //ANDQ
+        case 3:  return B ^ A; //XORQ 
         default: break;
     }
-    return A + B; //ANDQ
+    return B + A; //ANDQ
 }
+
+int64_t ExecuteStage::gete_valE()
+{
+    return valE;
+}
+
+uint8_t ExecuteStage::gete_dstE()
+{
+    return dstE;
+}
+
 
 /**
  * Helper method that clears the condition codes before each call to CC. Precautionary.
@@ -226,4 +240,5 @@ void clearCC(ConditionCodes* codes)
     codes->setConditionCode(0,ZF,error);
     codes->setConditionCode(0,SF,error);
 }
+
 

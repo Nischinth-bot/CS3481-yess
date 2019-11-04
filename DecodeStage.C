@@ -9,6 +9,7 @@
 #include "M.h"
 #include "W.h"
 #include "Stage.h"
+#include "ExecuteStage.h"
 #include "DecodeStage.h"
 #include "Status.h"
 #include "Debug.h"
@@ -26,7 +27,11 @@
 bool DecodeStage::doClockLow(PipeReg ** pregs, Stage ** stages)
 {
     D * dreg = (D *) pregs[DREG];
+    W * wreg = (W *) pregs[WREG];
+    M * mreg = (M *) pregs[MREG];
     E * ereg = (E *) pregs[EREG];
+
+    ExecuteStage* e = (ExecuteStage*) stages[ESTAGE];
 
     uint64_t icode = 0, ifun = 0, valC = 0, valA = 0, valB = 0;
     uint64_t dstE = RNONE, dstM = RNONE, srcA = RNONE, srcB = RNONE, stat = SAOK; 
@@ -35,16 +40,16 @@ bool DecodeStage::doClockLow(PipeReg ** pregs, Stage ** stages)
     ifun = dreg-> getifun()-> getOutput();
     valC = dreg-> getvalC()-> getOutput(); 
     stat = dreg-> getstat() -> getOutput();
-   
-    valA = sel_FwdA(dreg);
-    valB = FwdB(dreg);
+
     dstE = dst_E(dreg, icode);
     dstM = dst_M(dreg, icode);
     srcA = d_srcA(dreg, icode);
     srcB = d_srcB(dreg, icode);
 
+    valB = FwdB(dreg, wreg, mreg, srcB, e);
+    valA = sel_FwdA(dreg, wreg, mreg, srcA, e);
+    
     setEInput(ereg,stat, icode,ifun, valC, valA, valB, dstE, dstM, srcA, srcB);
-
     return false;
 }
 
@@ -131,8 +136,12 @@ uint8_t DecodeStage::dst_M(D * dreg, uint8_t icode)
  * @param: dreg -  A pointer to an instance of the D pipe register class.
  * @return: d_rvalA 
  */
-uint64_t DecodeStage::sel_FwdA(D* dreg)
+int64_t DecodeStage::sel_FwdA(D* dreg, W* wreg, M* mreg, uint8_t d_srcA, ExecuteStage* e)
 {
+ // if(d_srcA == e->gete_dstE()) return e->gete_valE();
+    if(d_srcA == mreg->getdstE()->getOutput()) return mreg->getvalE()->getOutput();
+    if(d_srcA == wreg->getdstE()->getOutput()) return wreg->getvalE()->getOutput();
+
     uint8_t rA =  dreg->getrA()->getOutput();
     bool error = false;
     RegisterFile * regFile = RegisterFile::getInstance();
@@ -145,8 +154,12 @@ uint64_t DecodeStage::sel_FwdA(D* dreg)
  * @param: derg - A pointer to an instance of the D Pipe register class.
  * @return: d_rvalB
  */
-uint64_t DecodeStage::FwdB(D* dreg)
+int64_t DecodeStage::FwdB(D* dreg, W* wreg, M* mreg, uint8_t d_srcB, ExecuteStage* e)
 {
+//  if(d_srcB == e->gete_dstE()) return e->gete_valE();
+    if(d_srcB == mreg->getdstE()->getOutput()) return mreg->getvalE()->getOutput(); 
+    if(d_srcB == wreg->getdstE()->getOutput()) return wreg->getvalE()->getOutput();
+
     uint8_t rB =  dreg->getrB()->getOutput();
     bool error = false;
     RegisterFile * regFile = RegisterFile::getInstance();
@@ -202,6 +215,8 @@ void DecodeStage::setEInput(E * ereg, uint64_t stat, uint64_t icode,
         uint64_t valB, uint64_t dstE, uint64_t dstM, uint64_t srcA, uint64_t srcB)
 {
     ereg->getstat()->setInput(stat);
+    ereg->getvalA()->setInput(valA);
+    ereg->getvalB()->setInput(valB);
     ereg->geticode()->setInput(icode);
     ereg->getifun()->setInput(ifun);
     ereg->getvalC()->setInput(valC);
