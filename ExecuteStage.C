@@ -18,6 +18,7 @@
 
 void clearCC(ConditionCodes* codes); //LOCAL HELPER METHOD
 
+
 bool Cnd = false;
 int64_t valE = 0;
 uint8_t dstE = RNONE;
@@ -37,8 +38,9 @@ bool ExecuteStage::doClockLow(PipeReg ** pregs, Stage ** stages)
     M * mreg = (M *) pregs[MREG];
 
 
-    uint64_t stat = SAOK, icode = 0, dstM = RNONE, dstE = RNONE;
-    int64_t valA = 0;
+    uint64_t stat = SAOK, icode = 0, dstM = RNONE;
+
+
     stat = ereg->getstat()->getOutput();
     icode = ereg->geticode()->getOutput();
     dstM = ereg->getdstM()->getOutput();
@@ -49,7 +51,7 @@ bool ExecuteStage::doClockLow(PipeReg ** pregs, Stage ** stages)
     {
         CC(ereg, valE);
     }
-    valA = ereg->getvalA()->getOutput();
+    int64_t valA = ereg->getvalA()->getOutput();
     setMInput(mreg, stat, icode, Cnd, valE, valA, dstE, dstM);
     return 0;
 }

@@ -48,7 +48,7 @@ bool DecodeStage::doClockLow(PipeReg ** pregs, Stage ** stages)
 
     valB = FwdB(dreg, wreg, mreg, srcB, e);
     valA = sel_FwdA(dreg, wreg, mreg, srcA, e);
-    
+
     setEInput(ereg,stat, icode,ifun, valC, valA, valB, dstE, dstM, srcA, srcB);
     return false;
 }
@@ -138,7 +138,7 @@ uint8_t DecodeStage::dst_M(D * dreg, uint8_t icode)
  */
 int64_t DecodeStage::sel_FwdA(D* dreg, W* wreg, M* mreg, uint8_t d_srcA, ExecuteStage* e)
 {
- // if(d_srcA == e->gete_dstE()) return e->gete_valE();
+    if(d_srcA == e->gete_dstE()) return e->gete_valE();
     if(d_srcA == mreg->getdstE()->getOutput()) return mreg->getvalE()->getOutput();
     if(d_srcA == wreg->getdstE()->getOutput()) return wreg->getvalE()->getOutput();
 
@@ -156,7 +156,7 @@ int64_t DecodeStage::sel_FwdA(D* dreg, W* wreg, M* mreg, uint8_t d_srcA, Execute
  */
 int64_t DecodeStage::FwdB(D* dreg, W* wreg, M* mreg, uint8_t d_srcB, ExecuteStage* e)
 {
-//  if(d_srcB == e->gete_dstE()) return e->gete_valE();
+    if(d_srcB == e->gete_dstE()) return e->gete_valE();
     if(d_srcB == mreg->getdstE()->getOutput()) return mreg->getvalE()->getOutput(); 
     if(d_srcB == wreg->getdstE()->getOutput()) return wreg->getvalE()->getOutput();
 
