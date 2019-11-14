@@ -11,7 +11,7 @@ class ExecuteStage: public Stage
         int64_t e_dstE(E* ereg);
         int64_t ALU(E* ereg);
         void CC(E* ereg, int64_t valE);
-
+        bool gete_Cnd(uint8_t icode, uint8_t ifun);
     public:
         bool doClockLow(PipeReg ** pregs, Stage ** stages);
         void doClockHigh(PipeReg ** pregs);

@@ -38,14 +38,17 @@ bool ExecuteStage::doClockLow(PipeReg ** pregs, Stage ** stages)
     M * mreg = (M *) pregs[MREG];
 
 
-    uint64_t stat = SAOK, icode = 0, dstM = RNONE;
+    uint64_t stat = SAOK, icode = 0, ifun = 0, dstM = RNONE;
 
 
     stat = ereg->getstat()->getOutput();
+    ifun = ereg->getifun()->getOutput();
     icode = ereg->geticode()->getOutput();
     dstM = ereg->getdstM()->getOutput();
     dstE = e_dstE(ereg);
     valE = ALU(ereg); 
+    
+    Cnd = gete_Cnd(icode,ifun);
 
     if(set_cc(icode))
     {
@@ -159,7 +162,7 @@ bool ExecuteStage::set_cc(uint8_t icode)
  */
 int64_t ExecuteStage::e_dstE(E* ereg)
 {    
-    if(ereg->geticode()->getOutput() == IRRMOVQ && !Cnd) return RNONE;
+    if(ereg->geticode()->getOutput() == IRRMOVQ && !gete_Cnd(ereg->geticode()->getOutput(),ereg->getifun()->getOutput())) return RNONE;
     return ereg->getdstE()->getOutput();
 }
 
@@ -230,6 +233,61 @@ uint8_t ExecuteStage::gete_dstE()
     return dstE;
 }
 
+bool ExecuteStage::gete_Cnd(uint8_t icode, uint8_t ifun)
+{
+    if(icode != IJXX && icode != ICMOVXX) 
+    {
+        return 0;
+    }
+    else
+    {
+
+        ConditionCodes * cc = ConditionCodes::getInstance();
+        bool error = false;
+        bool sf = cc->getConditionCode(SF,error);
+        bool of = cc->getConditionCode(OF,error);
+        bool zf = cc->getConditionCode(ZF,error);
+
+        switch(ifun)
+        {
+            case 0:  // jmp/rrmovq
+                return 1;
+            case 1: // jle/cmovle
+                error = false;
+                sf = cc->getConditionCode(SF,error);
+                of = cc->getConditionCode(OF,error);
+                zf = cc->getConditionCode(ZF,error);
+                return ((sf^of) | zf);
+            case 2:  //jl/cmovl             
+                error = false;
+                sf = cc->getConditionCode(SF,error);
+                of = cc->getConditionCode(OF,error);
+                return (sf^of);
+            case 3: //je/cmove
+                error = false;
+                zf = cc->getConditionCode(ZF,error);
+                return zf;
+            case 4: //jne/cmovne
+                error = false;
+                zf = cc->getConditionCode(ZF,error);
+                return !zf;
+             case 5: //jge/cmovge
+                error = false;
+                sf = cc->getConditionCode(SF,error);
+                of = cc->getConditionCode(OF,error);
+                return (!(sf^of));
+            case 6: //jg/cmvog
+                error = false;
+                sf = cc->getConditionCode(SF,error);
+                of = cc->getConditionCode(OF,error);
+                zf = cc->getConditionCode(ZF,error);
+                return (!(sf^of) & !zf);
+           
+            default:
+                return 0;
+            }
+    }
+}
 
 /**
  * Helper method that clears the condition codes before each call to CC. Precautionary.
@@ -242,5 +300,4 @@ void clearCC(ConditionCodes* codes)
     codes->setConditionCode(0,ZF,error);
     codes->setConditionCode(0,SF,error);
 }
-
 
