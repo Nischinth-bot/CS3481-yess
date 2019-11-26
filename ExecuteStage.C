@@ -48,7 +48,7 @@ bool ExecuteStage::doClockLow(PipeReg ** pregs, Stage ** stages)
     dstE = e_dstE(ereg);
     valE = ALU(ereg); 
     
-    Cnd = gete_Cnd(icode,ifun);
+    Cnd = Cond(icode,ifun);
 
     if(set_cc(icode))
     {
@@ -112,7 +112,7 @@ int64_t ExecuteStage::aluA(E * ereg)
     if(E_icode == IRRMOVQ || E_icode == IOPQ) return ereg->getvalA()->getOutput();
     if(E_icode == IIRMOVQ || E_icode == IRMMOVQ || E_icode == IMRMOVQ) return ereg->getvalC()->getOutput();
     if(E_icode == ICALL || E_icode == IPUSHQ) return -8;
-    if(E_icode == IRET || E_icode == IPOPQ) return -8; 
+    if(E_icode == IRET || E_icode == IPOPQ) return 8; 
     return 0;
 }
 
@@ -162,7 +162,7 @@ bool ExecuteStage::set_cc(uint8_t icode)
  */
 int64_t ExecuteStage::e_dstE(E* ereg)
 {    
-    if(ereg->geticode()->getOutput() == IRRMOVQ && !gete_Cnd(ereg->geticode()->getOutput(),ereg->getifun()->getOutput())) return RNONE;
+    if(ereg->geticode()->getOutput() == IRRMOVQ && !Cond(ereg->geticode()->getOutput(),ereg->getifun()->getOutput())) return RNONE;
     return ereg->getdstE()->getOutput();
 }
 
@@ -203,7 +203,7 @@ void ExecuteStage::CC(E* ereg, int64_t valE)
     }
 }
 /**
- * Simulator of the ALU computational unit.
+ * Simulator of the ALU hardware unit.
  * @param: ereg - A pointer to the instance of the E register class.
  * @return: valE - a 64 bit value 
  */
@@ -233,7 +233,13 @@ uint8_t ExecuteStage::gete_dstE()
     return dstE;
 }
 
-bool ExecuteStage::gete_Cnd(uint8_t icode, uint8_t ifun)
+/**
+ *Simulator for the Cond hardware.
+ @param: E_icode 
+ @param: E_ifun
+ @return : Appropriate e_Cnd value as would be calculated by the Cond hardware.
+ */
+bool ExecuteStage::Cond(uint8_t icode, uint8_t ifun)
 {
     if(icode != IJXX && icode != ICMOVXX) 
     {
