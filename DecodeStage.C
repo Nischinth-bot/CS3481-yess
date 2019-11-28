@@ -10,6 +10,7 @@
 #include "W.h"
 #include "Stage.h"
 #include "ExecuteStage.h"
+#include "MemoryStage.h"
 #include "DecodeStage.h"
 #include "Status.h"
 #include "Debug.h"
@@ -24,6 +25,8 @@
  * @param: stages - array of stages (FetchStage, DecodeStage, ExecuteStage,
  *         MemoryStage, WritebackStage instances)
  */
+
+
 bool DecodeStage::doClockLow(PipeReg ** pregs, Stage ** stages)
 {
     D * dreg = (D *) pregs[DREG];
@@ -32,9 +35,10 @@ bool DecodeStage::doClockLow(PipeReg ** pregs, Stage ** stages)
     E * ereg = (E *) pregs[EREG];
 
     ExecuteStage* e = (ExecuteStage*) stages[ESTAGE];
+    MemoryStage * m = (MemoryStage*) stages[MSTAGE];
 
     uint64_t icode = 0, ifun = 0, valC = 0, valA = 0, valB = 0;
-    uint64_t dstE = RNONE, dstM = RNONE, srcA = RNONE, srcB = RNONE, stat = SAOK; 
+    uint8_t dstE = RNONE, dstM = RNONE, srcA = RNONE, srcB = RNONE, stat = SAOK; 
 
     icode = dreg-> geticode()-> getOutput();
     ifun = dreg-> getifun()-> getOutput();
@@ -43,12 +47,13 @@ bool DecodeStage::doClockLow(PipeReg ** pregs, Stage ** stages)
 
     dstE = dst_E(dreg, icode);
     dstM = dst_M(dreg, icode);
-    srcA = d_srcA(dreg, icode);
-    srcB = d_srcB(dreg, icode);
+    srcA = getd_srcA(dreg, icode);
+    srcB = getd_srcB(dreg, icode);
 
-    valB = FwdB(dreg, wreg, mreg, srcB, e);
-    valA = sel_FwdA(dreg, wreg, mreg, srcA, e);
-
+    valB = FwdB(dreg, wreg, mreg, srcB, e, m);
+    valA = sel_FwdA(dreg, wreg, mreg, srcA, e, m);
+    
+   
     setEInput(ereg,stat, icode,ifun, valC, valA, valB, dstE, dstM, srcA, srcB);
     return false;
 }
@@ -60,7 +65,7 @@ bool DecodeStage::doClockLow(PipeReg ** pregs, Stage ** stages)
  * @param: icode - The icode of the instruction passing through the pipeline.
  * @return: The appropriate d_srcA value given the icode.
  */
-uint8_t DecodeStage::d_srcA(D * dreg, uint8_t icode)
+uint8_t DecodeStage::getd_srcA(D * dreg, uint8_t icode)
 {
     uint8_t D_rA_ret[4] = {IRRMOVQ, IRMMOVQ, IOPQ, IPUSHQ};
     uint8_t RSP_ret[2] = {IPOPQ, IRET};
@@ -80,7 +85,7 @@ uint8_t DecodeStage::d_srcA(D * dreg, uint8_t icode)
  * @param: icode - The icode of the instruction passing through the pipeline.
  * @return: The appropriate d_srcB value given the icode.
  */
-uint8_t DecodeStage::d_srcB(D * dreg, uint8_t icode)
+uint8_t DecodeStage::getd_srcB(D * dreg, uint8_t icode)
 {
     uint8_t D_rB_ret[4] = {IOPQ, IRMMOVQ, IMRMOVQ};
     uint8_t RSP_ret[4] = {IPUSHQ, IPOPQ, ICALL, IRET};
@@ -136,17 +141,20 @@ uint8_t DecodeStage::dst_M(D * dreg, uint8_t icode)
  * @param: dreg -  A pointer to an instance of the D pipe register class.
  * @return: d_rvalA 
  */
-int64_t DecodeStage::sel_FwdA(D* dreg, W* wreg, M* mreg, uint8_t d_srcA, ExecuteStage* e)
+int64_t DecodeStage::sel_FwdA(D* dreg, W* wreg, M* mreg, uint8_t d_srcA, ExecuteStage* e, MemoryStage * m)
 {
+    if(dreg->geticode()->getOutput() == ICALL || dreg->geticode()->getOutput() == IJXX) return dreg->getvalP()->getOutput(); 
+    //d_srcA == D_valP : D_valP
     if(d_srcA == RNONE) return 0;
-    if(d_srcA == e->gete_dstE()) return e->gete_valE();
-    if(d_srcA == mreg->getdstE()->getOutput()) return mreg->getvalE()->getOutput();
-    if(d_srcA == wreg->getdstE()->getOutput()) return wreg->getvalE()->getOutput();
-
-    uint8_t rA =  dreg->getrA()->getOutput();
+    if(d_srcA == e->gete_dstE()) return e->gete_valE(); //d_srcA == e_dstE
+    if(d_srcA == mreg->getdstE()->getOutput()) return mreg->getvalE()->getOutput(); //d_srcA == M_dstE :: M_valE
+    if(d_srcA == mreg->getdstM()->getOutput()) return m->getm_valM(); //d_srcA == M_dstM :: m_valM
+    if(d_srcA == wreg->getdstM()->getOutput()) return wreg->getvalM()->getOutput(); //d_srcA == W_dstM :: W_valM
+    if(d_srcA == wreg->getdstE()->getOutput()) return wreg->getvalE()->getOutput(); //d_srcA == W_dstE :: W_valE
+    
     bool error = false;
     RegisterFile * regFile = RegisterFile::getInstance();
-    return regFile->readRegister(rA, error);
+    return regFile->readRegister(d_srcA, error);
 }
 
 
@@ -155,17 +163,17 @@ int64_t DecodeStage::sel_FwdA(D* dreg, W* wreg, M* mreg, uint8_t d_srcA, Execute
  * @param: derg - A pointer to an instance of the D Pipe register class.
  * @return: d_rvalB
  */
-int64_t DecodeStage::FwdB(D* dreg, W* wreg, M* mreg, uint8_t d_srcB, ExecuteStage* e)
+int64_t DecodeStage::FwdB(D* dreg, W* wreg, M* mreg, uint8_t d_srcB, ExecuteStage* e, MemoryStage * m)
 {
     if(d_srcB == RNONE) return 0;
     if(d_srcB == e->gete_dstE()) return e->gete_valE();
     if(d_srcB == mreg->getdstE()->getOutput()) return mreg->getvalE()->getOutput(); 
+    if(d_srcB == mreg->getdstM()->getOutput()) return m->getm_valM(); //d_srcA == M_dstE :: m_valM
     if(d_srcB == wreg->getdstE()->getOutput()) return wreg->getvalE()->getOutput();
-
-    uint8_t rB =  dreg->getrB()->getOutput();
+    if(d_srcB == wreg->getdstM()->getOutput()) return wreg->getvalM()->getOutput(); //d_srcA == W_dstM :: W_valM
     bool error = false;
     RegisterFile * regFile = RegisterFile::getInstance();
-    return regFile->readRegister(rB, error);
+    return regFile->readRegister(d_srcB, error);
 }
 
 /* doClockHigh
@@ -197,6 +205,23 @@ void DecodeStage::doClockHigh(PipeReg ** pregs)
     dreg->getrB()->normal();
     dreg->getvalC()->normal();
     dreg->getvalP()->normal();
+}
+
+/**
+ * Specialized method to perform pop operation. Puts R[%rsp] in valA and valB.
+ * Updates the stack pointer.
+ * @param: valA: Reference to the valA variable.
+ * @paramm: valB: Reference to the valB variable.
+ */
+void DecodeStage::performPop(uint64_t &valA, uint64_t &valB)
+{
+    RegisterFile * regs = RegisterFile::getInstance();
+    bool error = false;
+    uint64_t rsp = regs->readRegister(RSP, error);
+    valA = rsp;
+    valB = rsp;
+    error = false;
+    regs->writeRegister(rsp + 8, RSP, error);
 }
 
 /* setDInput

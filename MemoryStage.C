@@ -23,12 +23,15 @@
  * @param: stages - array of stages (FetchStage, DecodeStage, ExecuteStage,
  *         MemoryStage, WritebackStage instances)
  */
+
+
 bool MemoryStage::doClockLow(PipeReg ** pregs, Stage ** stages)
 {
     M * mreg = (M *) pregs[MREG];
     W * wreg = (W *) pregs[WREG];
 
-    uint64_t stat = SAOK, icode = 0, valE = 0, valA = 0, valM = 0, dstM = RNONE, dstE = RNONE;
+    valM = 0;
+    uint64_t stat = SAOK, icode = 0, valE = 0, valA = 0, dstM = RNONE, dstE = RNONE;
     icode = mreg->geticode()->getOutput();
     dstE = mreg->getdstE()->getOutput();
     dstM = mreg->getdstM()->getOutput();
@@ -44,10 +47,8 @@ bool MemoryStage::doClockLow(PipeReg ** pregs, Stage ** stages)
     }
     if(mem_write(icode))
     {
-        Memory * mem = Memory::getInstance();
-        mem->putLong(valA, addr,  error);
+       mem->putLong(valA, addr,  error);
     }
-
     setWinput(wreg, stat, icode, valE, valM, dstE, dstM);
     return 0;
 }
@@ -61,7 +62,7 @@ bool MemoryStage::doClockLow(PipeReg ** pregs, Stage ** stages)
  */
 uint64_t MemoryStage::mem_addr(uint8_t M_icode, int64_t M_valE, int64_t M_valA)
 {
-    if(M_icode == IRRMOVQ || M_icode == IPUSHQ || M_icode == ICALL || M_icode == IMRMOVQ) return M_valE;
+    if(M_icode == IRMMOVQ || M_icode == IPUSHQ || M_icode == ICALL || M_icode == IMRMOVQ) return M_valE;
     if(M_icode == IPOPQ || M_icode == IRET) return M_valA;
     return 0;
 }
@@ -81,6 +82,14 @@ bool MemoryStage::mem_read(uint8_t M_icode)
 bool MemoryStage::mem_write(uint8_t M_icode)
 {   
     return (M_icode == IRMMOVQ || M_icode == IPUSHQ || M_icode == ICALL);
+}
+
+/**
+ * @return: m_valM
+ */
+int64_t MemoryStage::getm_valM()
+{
+    return valM;
 }
 
 /* doClockHigh

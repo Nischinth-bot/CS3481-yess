@@ -29,28 +29,20 @@ bool FetchStage::doClockLow(PipeReg ** pregs, Stage ** stages)
     F * freg = (F *) pregs[FREG];
     D * dreg = (D *) pregs[DREG];
 
-    uint64_t icode = 0, ifun = 0, valC = 0, valP = 0;
+    uint64_t icode = 0, ifun = 0,  valP = 0;
+    int64_t valC = 0;
     uint8_t rA = RNONE, rB = RNONE, stat = SAOK;
 
     uint64_t f_pc = selectPC((F*)pregs[FREG],(M*)pregs[MREG], (W*)pregs[WREG]);
-
     Memory* mem = Memory::getInstance();
     bool error = false;
-
     uint64_t instr = mem->getByte(f_pc,error); 
     ifun = Tools::getBits(instr,0,3);    
     icode = Tools::getBits(instr,4,7);
-
-    bool nregids = need_regids(icode);
-    bool nvalC = needValC(icode);
-
-    valP = PCincrement(f_pc,nregids,nvalC);
-    if(needValC(icode)) valC = buildValC(f_pc, icode);
-    if(need_regids(icode)) getRegIds(f_pc, icode, rA, rB);
-
+    valP = PCincrement(f_pc,need_regids(icode),needValC(icode));
+    if(needValC(icode)) valC = buildValC(f_pc, icode); 
+    getRegIds(f_pc, icode, rA, rB);
     f_pc = predictPC(icode, valC, valP);
-
-
     freg->getpredPC()->setInput(f_pc);
     setDInput(dreg, stat, icode, ifun, rA, rB, valC, valP);
     return false;
@@ -208,7 +200,7 @@ uint64_t FetchStage::buildValC(uint64_t f_pc, uint8_t icode)
     uint8_t byteArray[8] = {0};
     Memory* mem = Memory::getInstance();
     bool error = false;
-    uint8_t wordIndex = f_pc + 2;
+    int64_t wordIndex = f_pc + 2;
     if(icode == IJXX || icode == ICALL) {wordIndex --;}
     uint8_t j = 0;
     for(int i = wordIndex; i < (wordIndex + 8); i ++)

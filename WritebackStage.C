@@ -31,7 +31,17 @@ bool WritebackStage::doClockLow(PipeReg ** pregs, Stage ** stages)
     {
         return 1;
     }
+    int64_t W_valE = wreg->getvalE()->getOutput();
+    int64_t W_valM = wreg->getvalM()->getOutput();
+    uint8_t dstM = wreg->getdstM()->getOutput();
+    uint8_t dst_E = wreg->getdstE()->getOutput();
 
+    RegisterFile * regField = RegisterFile::getInstance();
+    bool error = false;
+    regField->writeRegister(W_valE, dst_E, error);
+    error = false;
+    regField->writeRegister(W_valM, dstM, error); 
+ 
     return 0;
 }
 
@@ -43,16 +53,7 @@ bool WritebackStage::doClockLow(PipeReg ** pregs, Stage ** stages)
  */
 void WritebackStage::doClockHigh(PipeReg ** pregs)
 {
-    W* wreg = (W*)pregs[WREG];
-    int64_t W_valE = wreg->getvalE()->getOutput();
-    int64_t W_valM = wreg->getvalM()->getOutput();
-    uint32_t dstM = wreg->getdstM()->getOutput();
-    uint8_t dst_E = wreg->getdstE()->getOutput();
-    RegisterFile * regField = RegisterFile::getInstance();
-    bool error = false;
-    regField->writeRegister(W_valE, dst_E, error);
-    error = false;
-    regField->writeRegister(W_valM, dstM, error);
-    return;
+
+   return;
 }
 
