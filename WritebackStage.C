@@ -9,10 +9,11 @@
 #include "M.h"
 #include "W.h"
 #include "Stage.h"
-#include "WritebackStage.h"
 #include "Status.h"
 #include "Debug.h"
 #include "Instructions.h"
+#include "WritebackStage.h"
+
 
 /*
  * doClockLow:
@@ -27,7 +28,8 @@ bool WritebackStage::doClockLow(PipeReg ** pregs, Stage ** stages)
 {
     W* wreg = (W*)pregs[WREG];
     uint64_t icode = wreg->geticode()->getOutput();
-    if(icode == IHALT)
+    uint64_t stat = wreg->getstat()->getOutput();
+    if(stat != SAOK || icode == IHALT)
     {
         return 1;
     }
@@ -53,7 +55,6 @@ bool WritebackStage::doClockLow(PipeReg ** pregs, Stage ** stages)
  */
 void WritebackStage::doClockHigh(PipeReg ** pregs)
 {
-
    return;
 }
 

@@ -12,7 +12,7 @@ class PipeRegField
       uint64_t getOutput();
       void normal();
       void stall();
-      void bubble(int state);
+      void bubble(int state = 0);
 };
  
 

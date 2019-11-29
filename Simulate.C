@@ -19,15 +19,15 @@
 #include "M.h"
 #include "W.h"
 #include "Stage.h"
-#include "ExecuteStage.h"
 #include "MemoryStage.h"
+#include "ExecuteStage.h"
 #include "DecodeStage.h"
 #include "FetchStage.h"
 #include "WritebackStage.h"
-#include "Simulate.h"
 #include "Memory.h"
 #include "RegisterFile.h"
 #include "ConditionCodes.h"
+#include "Simulate.h"
 
 /*
  * Simulate constructor

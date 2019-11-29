@@ -39,11 +39,17 @@ bool FetchStage::doClockLow(PipeReg ** pregs, Stage ** stages)
     uint64_t instr = mem->getByte(f_pc,error); 
     ifun = Tools::getBits(instr,0,3);    
     icode = Tools::getBits(instr,4,7);
+    
+    icode = f_icode(icode, f_pc);
+    ifun = f_ifun(ifun, f_pc);
+    stat = f_stat(icode, f_pc);
+
     valP = PCincrement(f_pc,need_regids(icode),needValC(icode));
     if(needValC(icode)) valC = buildValC(f_pc, icode); 
     getRegIds(f_pc, icode, rA, rB);
     f_pc = predictPC(icode, valC, valP);
     freg->getpredPC()->setInput(f_pc);
+
     setDInput(dreg, stat, icode, ifun, rA, rB, valC, valP);
     return false;
 }
@@ -209,3 +215,42 @@ uint64_t FetchStage::buildValC(uint64_t f_pc, uint8_t icode)
     }
     return Tools::buildLong(byteArray);
 }
+
+
+bool FetchStage::instr_valid(uint8_t f_icode)
+{
+    uint8_t array [] = { INOP, IHALT, IRRMOVQ, IIRMOVQ, IRMMOVQ, IMRMOVQ, 
+        IOPQ, IJXX, ICALL, IRET, IPUSHQ, IPOPQ };
+    for (uint8_t ID : array)
+        if(f_icode == ID) return 1;
+    return 0;
+}
+
+uint8_t FetchStage::f_stat(uint8_t f_icode, uint32_t addr)
+{
+
+    if(mem_error(addr)) return SADR;
+    if(!instr_valid(f_icode)) return SINS;
+    if(f_icode == IHALT) return SHLT;
+    return SAOK;
+}
+
+uint8_t FetchStage::f_icode(uint8_t f_icode, uint32_t addr)
+{
+    if(mem_error(addr)) return INOP;
+    return  f_icode;
+}
+
+uint8_t FetchStage::f_ifun(uint8_t ifun, uint32_t addr)
+{
+    if(mem_error(addr)) return FNONE;
+    return ifun;
+
+}
+
+bool FetchStage::mem_error(uint32_t addr)
+{
+    return (addr < 0 || addr > MEMSIZE);
+}
+
+    

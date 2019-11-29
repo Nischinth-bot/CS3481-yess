@@ -9,11 +9,12 @@
 #include "M.h"
 #include "W.h"
 #include "Stage.h"
-#include "MemoryStage.h"
 #include "Status.h"
 #include "Debug.h"
 #include "Instructions.h"
 #include "Memory.h"
+#include "MemoryStage.h"
+
 /*
  * doClockLow:
  * Performs the Fetch stage combinational logic that is performed when
@@ -29,9 +30,9 @@ bool MemoryStage::doClockLow(PipeReg ** pregs, Stage ** stages)
 {
     M * mreg = (M *) pregs[MREG];
     W * wreg = (W *) pregs[WREG];
-
+    stat = SAOK;
     valM = 0;
-    uint64_t stat = SAOK, icode = 0, valE = 0, valA = 0, dstM = RNONE, dstE = RNONE;
+    uint64_t icode = 0, valE = 0, valA = 0, dstM = RNONE, dstE = RNONE;
     icode = mreg->geticode()->getOutput();
     dstE = mreg->getdstE()->getOutput();
     dstM = mreg->getdstM()->getOutput();
@@ -49,6 +50,8 @@ bool MemoryStage::doClockLow(PipeReg ** pregs, Stage ** stages)
     {
        mem->putLong(valA, addr,  error);
     }
+    if(error == 1){ stat = SADR; }
+    else {stat = mreg->getstat()->getOutput();}
     setWinput(wreg, stat, icode, valE, valM, dstE, dstM);
     return 0;
 }
@@ -85,11 +88,21 @@ bool MemoryStage::mem_write(uint8_t M_icode)
 }
 
 /**
+ * Public method to get m_valM.
  * @return: m_valM
  */
 int64_t MemoryStage::getm_valM()
 {
     return valM;
+}
+
+/**
+ * Public method to get m_stat.
+ * @return m_stat
+ */
+uint64_t MemoryStage::getm_stat()
+{
+    return stat;
 }
 
 /* doClockHigh

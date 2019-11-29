@@ -1,5 +1,6 @@
 #include <string>
 #include <cstdint>
+
 #include "RegisterFile.h"
 #include "PipeRegField.h"
 #include "PipeReg.h"
@@ -9,16 +10,16 @@
 #include "M.h"
 #include "W.h"
 #include "Stage.h"
-#include "ExecuteStage.h"
 #include "Status.h"
 #include "Debug.h"
+#include "MemoryStage.h"
 #include "Instructions.h"
 #include "Tools.h"
 #include "ConditionCodes.h"
+#include "ExecuteStage.h"
 
 void clearCC(ConditionCodes* codes); //LOCAL HELPER METHOD
-
-
+bool M_bubble = false;
 bool Cnd = false;
 int64_t valE = 0;
 uint8_t dstE = RNONE;
@@ -36,21 +37,22 @@ bool ExecuteStage::doClockLow(PipeReg ** pregs, Stage ** stages)
 {
     E * ereg = (E *) pregs[EREG];
     M * mreg = (M *) pregs[MREG];
-
+    W* wreg = (W *) pregs[WREG];
+    MemoryStage * mptr = (MemoryStage *) stages[MSTAGE];
 
     uint64_t stat = SAOK, icode = 0, ifun = 0, dstM = RNONE;
 
-
+    M_bubble = calculateControlSignals(mptr, wreg);
     stat = ereg->getstat()->getOutput();
     ifun = ereg->getifun()->getOutput();
     icode = ereg->geticode()->getOutput();
     dstM = ereg->getdstM()->getOutput();
     dstE = e_dstE(ereg);
     valE = ALU(ereg); 
-    
+
     Cnd = Cond(icode,ifun);
 
-    if(set_cc(icode))
+    if(set_cc(icode, wreg, mptr))
     {
         CC(ereg, valE);
     }
@@ -80,17 +82,31 @@ void ExecuteStage::doClockHigh(PipeReg ** pregs)
     ereg-> getsrcA() -> normal();
     ereg-> getsrcB() -> normal();
 
-    mreg->getstat()->normal();
-    mreg->geticode()->normal();
-    mreg->getCnd()->normal();
-    mreg->getvalE()->normal();
-    mreg->getvalA()->normal();
-    mreg->getdstE()->normal();
-    mreg->getdstM()->normal(); 
+    if(!M_bubble)
+    {
+        mreg->getstat()->normal();
+        mreg->geticode()->normal();
+        mreg->getCnd()->normal();
+        mreg->getvalE()->normal();
+        mreg->getvalA()->normal();
+        mreg->getdstE()->normal();
+        mreg->getdstM()->normal(); 
+    }
+    else
+    {
+        mreg->getstat()->bubble(SAOK);
+        mreg->geticode()->bubble(INOP);
+        mreg->getCnd()->bubble();
+        mreg->getvalE()->bubble();
+        mreg->getvalA()->bubble();
+        mreg->getdstE()->bubble(RNONE);
+        mreg->getdstM()->bubble(RNONE); 
+    }
 
 }
 
-void ExecuteStage::setMInput(M* mreg, uint64_t stat, uint64_t icode, uint64_t Cnd, uint64_t valE, uint64_t valA, uint64_t dstE, uint64_t dstM)
+void ExecuteStage::setMInput(M* mreg, uint64_t stat, uint64_t icode, uint64_t Cnd, uint64_t valE, 
+        uint64_t valA, uint64_t dstE, uint64_t dstM)
 {
     mreg->getstat()->setInput(stat);
     mreg->geticode()->setInput(icode);
@@ -99,6 +115,29 @@ void ExecuteStage::setMInput(M* mreg, uint64_t stat, uint64_t icode, uint64_t Cn
     mreg->getvalA()->setInput(valA);
     mreg->getdstE()->setInput(dstE);
     mreg->getdstM()->setInput(dstM);
+}
+
+/**
+ *@param: E_icode: icode from Ereg
+ @param: wreg : Pointer to an instance of the WritebackRegister class.
+ @param: m : Pointer an instance of the MemoryStage class.
+ @return: true if condition codes should be set for the instruction currently in the 
+ E register.
+ */
+bool ExecuteStage::set_cc(uint64_t E_icode, W* wreg, MemoryStage* m)
+{
+    bool ic = (E_icode == IOPQ);
+    if(!ic) return 0;
+
+    uint64_t mstat = m->getm_stat();
+    bool nmstat = (mstat != SADR && mstat != SINS && mstat != SHLT); 
+    if(!nmstat) return 0;  //!(m_stat in {SADR,SINS,SHLT});
+
+    uint64_t wstat = wreg->getstat()->getOutput();
+    bool nwstat = (wstat != SADR && wstat != SINS && wstat != SHLT);    
+    if(!nwstat) return 0; //!(W_stat() in {SADR,SINS,SHLT};)
+
+    return 1;
 }
 
 /**
@@ -144,16 +183,6 @@ uint8_t ExecuteStage::aluFUN(E* ereg)
 }
 
 /**
- * Simulator for set_cc HCL
- * @param: A pointer to the instance of the E register class.
- * @return: True if E_icode == IOPQ
- */
-bool ExecuteStage::set_cc(uint8_t icode)
-{
-    return (icode == IOPQ);
-}
-
-/**
  * Simulator for e_dstE HCL 
  * @param: pregs - Array of pipeline registers
  *
@@ -162,7 +191,9 @@ bool ExecuteStage::set_cc(uint8_t icode)
  */
 int64_t ExecuteStage::e_dstE(E* ereg)
 {    
-    if(ereg->geticode()->getOutput() == IRRMOVQ && !Cond(ereg->geticode()->getOutput(),ereg->getifun()->getOutput())) return RNONE;
+    if(ereg->geticode()->getOutput() == IRRMOVQ 
+            && !Cond(ereg->geticode()->getOutput(),ereg->getifun()->getOutput())) 
+        return RNONE;
     return ereg->getdstE()->getOutput();
 }
 
@@ -277,7 +308,7 @@ bool ExecuteStage::Cond(uint8_t icode, uint8_t ifun)
                 error = false;
                 zf = cc->getConditionCode(ZF,error);
                 return !zf;
-             case 5: //jge/cmovge
+            case 5: //jge/cmovge
                 error = false;
                 sf = cc->getConditionCode(SF,error);
                 of = cc->getConditionCode(OF,error);
@@ -288,11 +319,20 @@ bool ExecuteStage::Cond(uint8_t icode, uint8_t ifun)
                 of = cc->getConditionCode(OF,error);
                 zf = cc->getConditionCode(ZF,error);
                 return (!(sf^of) & !zf);
-           
+
             default:
                 return 0;
-            }
+        }
     }
+}
+
+bool ExecuteStage::calculateControlSignals(MemoryStage * mptr, W* wreg)
+{
+    uint8_t m_stat = mptr->getm_stat();
+    if(m_stat == SADR || m_stat == SINS || m_stat == SHLT) return 1;
+    uint8_t W_stat = wreg->getstat()->getOutput();
+    if(W_stat == SADR || W_stat == SINS || W_stat == SHLT) return 1;
+    return 0;
 }
 
 /**

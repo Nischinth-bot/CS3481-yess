@@ -17,7 +17,11 @@ class FetchStage: public Stage
       uint64_t PCincrement(uint64_t f_icode, bool nregids, bool nvalC);
       void getRegIds(uint64_t f_pc, uint8_t icode, uint8_t &rA, uint8_t &rB);
       uint64_t buildValC(uint64_t f_pc, uint8_t icode);
-   
+      bool instr_valid(uint8_t icode);
+      uint8_t f_stat(uint8_t f_icode, uint32_t addr);
+      bool mem_error(uint32_t addr);
+      uint8_t f_icode(uint8_t f_icode, uint32_t addr);
+      uint8_t f_ifun(uint8_t ifun, uint32_t addr);
    public:
       bool doClockLow(PipeReg ** pregs, Stage ** stages);
       void doClockHigh(PipeReg ** pregs);

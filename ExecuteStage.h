@@ -7,11 +7,13 @@ class ExecuteStage: public Stage
         int64_t aluA(E* ereg);
         int64_t aluB(E* ereg);
         uint8_t aluFUN(E* ereg);    
-        bool set_cc(uint8_t icode);
         int64_t e_dstE(E* ereg);
         int64_t ALU(E* ereg);
         void CC(E* ereg, int64_t valE);
         bool Cond(uint8_t icode, uint8_t ifun);
+        bool set_cc(uint64_t E_icode, W* wreg, MemoryStage* m);
+        bool calculateControlSignals(MemoryStage * mptr, W* wreg);
+    
     public:
         bool doClockLow(PipeReg ** pregs, Stage ** stages);
         void doClockHigh(PipeReg ** pregs);
