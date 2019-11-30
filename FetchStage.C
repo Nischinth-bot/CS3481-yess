@@ -7,13 +7,19 @@
 #include "PipeReg.h"
 #include "F.h"
 #include "D.h"
+#include "E.h"
 #include "M.h"
 #include "W.h"
 #include "Stage.h"
-#include "FetchStage.h"
 #include "Status.h"
 #include "Debug.h"
 #include "Instructions.h"
+#include "MemoryStage.h"
+#include "ExecuteStage.h"
+#include "DecodeStage.h"
+#include "FetchStage.h"
+
+
 
 /*
  * doClockLow:
@@ -26,8 +32,12 @@
  */
 bool FetchStage::doClockLow(PipeReg ** pregs, Stage ** stages)
 {
+
     F * freg = (F *) pregs[FREG];
     D * dreg = (D *) pregs[DREG];
+    E* ereg = (E *) pregs[EREG];
+
+    DecodeStage * d = (DecodeStage *) stages[DSTAGE];
 
     uint64_t icode = 0, ifun = 0,  valP = 0;
     int64_t valC = 0;
@@ -39,7 +49,7 @@ bool FetchStage::doClockLow(PipeReg ** pregs, Stage ** stages)
     uint64_t instr = mem->getByte(f_pc,error); 
     ifun = Tools::getBits(instr,0,3);    
     icode = Tools::getBits(instr,4,7);
-    
+
     icode = f_icode(icode, f_pc);
     ifun = f_ifun(ifun, f_pc);
     stat = f_stat(icode, f_pc);
@@ -50,7 +60,10 @@ bool FetchStage::doClockLow(PipeReg ** pregs, Stage ** stages)
     f_pc = predictPC(icode, valC, valP);
     freg->getpredPC()->setInput(f_pc);
 
-    setDInput(dreg, stat, icode, ifun, rA, rB, valC, valP);
+    F_stall = FStall(ereg, d);
+    D_stall = F_stall;
+  
+    if(!D_stall) setDInput(dreg, stat, icode, ifun, rA, rB, valC, valP);
     return false;
 }
 
@@ -108,7 +121,7 @@ bool FetchStage::needValC(uint64_t f_icode)
  */
 uint64_t FetchStage::PCincrement(uint64_t f_pc, bool nregids, bool nvalc)
 {
-    int increment = 1;
+    uint64_t increment = 1;
     if(nregids) increment += 1;
     if(nvalc) increment += 8;
     return (f_pc + increment);
@@ -126,53 +139,6 @@ uint64_t FetchStage::predictPC(uint64_t f_icode, uint64_t f_valC, uint64_t f_val
     for (uint64_t ID : checkArray)
         if(f_icode == ID) return f_valC;
     return f_valP;
-}
-
-/* doClockHigh
- * applies the appropriate control signal to the F
- * and D register intances
- *
- * @param: pregs - array of the pipeline register (F, D, E, M, W instances)
- */
-void FetchStage::doClockHigh(PipeReg ** pregs)
-{
-    F * freg = (F *) pregs[FREG];
-    D * dreg = (D *) pregs[DREG];
-
-    freg->getpredPC()->normal();
-    dreg->getstat()->normal();
-    dreg->geticode()->normal();
-    dreg->getifun()->normal();
-    dreg->getrA()->normal();
-    dreg->getrB()->normal();
-    dreg->getvalC()->normal();
-    dreg->getvalP()->normal();
-}
-
-/* setDInput
- * provides the input to potentially be stored in the D register
- * during doClockHigh
- *
- * @param: dreg - pointer to the D register instance
- * @param: stat - value to be stored in the stat pipeline register within D
- * @param: icode - value to be stored in the icode pipeline register within D
- * @param: ifun - value to be stored in the ifun pipeline register within D
- * @param: rA - value to be stored in the rA pipeline register within D
- * @param: rB - value to be stored in the rB pipeline register within D
- * @param: valC - value to be stored in the valC pipeline register within D
- * @param: valP - value to be stored in the valP pipeline register within D
- */
-void FetchStage::setDInput(D * dreg, uint64_t stat, uint64_t icode, 
-        uint64_t ifun, uint64_t rA, uint64_t rB,
-        uint64_t valC, uint64_t valP)
-{
-    dreg->getstat()->setInput(stat);
-    dreg->geticode()->setInput(icode);
-    dreg->getifun()->setInput(ifun);
-    dreg->getrA()->setInput(rA);
-    dreg->getrB()->setInput(rB);
-    dreg->getvalC()->setInput(valC);
-    dreg->getvalP()->setInput(valP);
 }
 
 /**
@@ -217,6 +183,10 @@ uint64_t FetchStage::buildValC(uint64_t f_pc, uint8_t icode)
 }
 
 
+/**
+ * @param: f_icode
+ * @return: true if f_icode is a valid instruction
+ */
 bool FetchStage::instr_valid(uint8_t f_icode)
 {
     uint8_t array [] = { INOP, IHALT, IRRMOVQ, IIRMOVQ, IRMMOVQ, IMRMOVQ, 
@@ -226,6 +196,12 @@ bool FetchStage::instr_valid(uint8_t f_icode)
     return 0;
 }
 
+
+/**
+ * @param: f_icode
+ * @param: addr:  address of pc
+ * @return: appropriate stat value depending on icode and addr.
+ */
 uint8_t FetchStage::f_stat(uint8_t f_icode, uint32_t addr)
 {
 
@@ -235,12 +211,23 @@ uint8_t FetchStage::f_stat(uint8_t f_icode, uint32_t addr)
     return SAOK;
 }
 
+/**
+ * @param: f_icode
+ * @param: addr: address of pc
+ * @return: INOP if address is invalid, else f_icode.
+ */
 uint8_t FetchStage::f_icode(uint8_t f_icode, uint32_t addr)
 {
     if(mem_error(addr)) return INOP;
     return  f_icode;
 }
 
+
+/**
+ * @param: ifun: function code of the current instruction.
+ * @param: addr: address of the pc.
+ * @return: FNONE if address is invalid, else ifun.
+ */
 uint8_t FetchStage::f_ifun(uint8_t ifun, uint32_t addr)
 {
     if(mem_error(addr)) return FNONE;
@@ -248,9 +235,105 @@ uint8_t FetchStage::f_ifun(uint8_t ifun, uint32_t addr)
 
 }
 
+bool FetchStage::FStall(E* ereg, DecodeStage * d)
+{
+    uint8_t E_icode = ereg->geticode()->getOutput();
+    uint32_t E_dstM = ereg->getdstM()->getOutput();
+    return (E_icode == IMRMOVQ || E_icode == IPOPQ) 
+        && (E_dstM == d->get_srcA() || E_dstM == d->get_srcB());
+}
+
+bool FetchStage:: DStall(E* ereg, DecodeStage * d)
+{
+    return FStall(ereg, d);
+}
+
+/**
+ * @param: addr: the address to check.
+ * @return: true if address is invalid.
+ */
 bool FetchStage::mem_error(uint32_t addr)
 {
     return (addr < 0 || addr > MEMSIZE);
 }
 
-    
+/* doClockHigh
+ * applies the appropriate control signal to the F
+ * and D register intances
+ *
+ * @param: pregs - array of the pipeline register (F, D, E, M, W instances)
+ */
+void FetchStage::doClockHigh(PipeReg ** pregs)
+{
+    if(D_stall) {doDStall(pregs);}
+    else{doDNormal(pregs);}
+    F* freg = (F *) pregs[FREG];
+    if(F_stall) {freg->getpredPC()->stall();}
+    else {freg->getpredPC()->normal();}
+}
+
+/**
+ * Normal doClockHigh behavior for D register.
+ * @param: pregs - array of the pipeline register
+ */
+void FetchStage::doDNormal(PipeReg ** pregs)
+{
+    D * dreg = (D *) pregs[DREG];
+    dreg->getstat()->normal();
+    dreg->geticode()->normal();
+    dreg->getifun()->normal();
+    dreg->getrA()->normal();
+    dreg->getrB()->normal();
+    dreg->getvalC()->normal();
+    dreg->getvalP()->normal();
+
+}
+
+
+/**
+ * Stalled doClockHigh  behavior for D register.
+ * @param: pregs - array of the pipeline register
+ */
+void FetchStage::doDStall(PipeReg ** pregs)
+{
+    D * dreg = (D *) pregs[DREG];
+    dreg->getstat()->stall();
+    dreg->geticode()->stall();
+    dreg->getifun()->stall();
+    dreg->getrA()->stall();
+    dreg->getrB()->stall();
+    dreg->getvalC()->stall();
+    dreg->getvalP()->stall();
+}
+
+
+
+
+
+/* setDInput
+ * provides the input to potentially be stored in the D register
+ * during doClockHigh
+ *
+ * @param: dreg - pointer to the D register instance
+ * @param: stat - value to be stored in the stat pipeline register within D
+ * @param: icode - value to be stored in the icode pipeline register within D
+ * @param: ifun - value to be stored in the ifun pipeline register within D
+ * @param: rA - value to be stored in the rA pipeline register within D
+ * @param: rB - value to be stored in the rB pipeline register within D
+ * @param: valC - value to be stored in the valC pipeline register within D
+ * @param: valP - value to be stored in the valP pipeline register within D
+ */
+void FetchStage::setDInput(D * dreg, uint64_t stat, uint64_t icode, 
+        uint64_t ifun, uint64_t rA, uint64_t rB,
+        uint64_t valC, uint64_t valP)
+{
+    dreg->getstat()->setInput(stat);
+    dreg->geticode()->setInput(icode);
+    dreg->getifun()->setInput(ifun);
+    dreg->getrA()->setInput(rA);
+    dreg->getrB()->setInput(rB);
+    dreg->getvalC()->setInput(valC);
+    dreg->getvalP()->setInput(valP);
+}
+
+

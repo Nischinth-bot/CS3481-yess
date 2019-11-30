@@ -11,11 +11,10 @@
 #include "Stage.h"
 #include "MemoryStage.h"
 #include "ExecuteStage.h"
-#include "DecodeStage.h"
 #include "Status.h"
 #include "Debug.h"
 #include "Instructions.h"
-
+#include "DecodeStage.h"
 /*
  * doClockLow:
  * Performs the Fetch stage combinational logic that is performed when
@@ -25,8 +24,6 @@
  * @param: stages - array of stages (FetchStage, DecodeStage, ExecuteStage,
  *         MemoryStage, WritebackStage instances)
  */
-
-
 bool DecodeStage::doClockLow(PipeReg ** pregs, Stage ** stages)
 {
     D * dreg = (D *) pregs[DREG];
@@ -37,8 +34,9 @@ bool DecodeStage::doClockLow(PipeReg ** pregs, Stage ** stages)
     ExecuteStage* e = (ExecuteStage*) stages[ESTAGE];
     MemoryStage * m = (MemoryStage*) stages[MSTAGE];
 
-    uint64_t icode = 0, ifun = 0, valC = 0, valA = 0, valB = 0;
-    uint8_t dstE = RNONE, dstM = RNONE, srcA = RNONE, srcB = RNONE, stat = SAOK; 
+    uint8_t icode = 0;
+    uint64_t ifun = 0, valC = 0, valA = 0, valB = 0;
+    uint8_t dstE = RNONE, dstM = RNONE, stat = SAOK; 
 
     icode = dreg-> geticode()-> getOutput();
     ifun = dreg-> getifun()-> getOutput();
@@ -52,8 +50,11 @@ bool DecodeStage::doClockLow(PipeReg ** pregs, Stage ** stages)
 
     valB = FwdB(dreg, wreg, mreg, srcB, e, m);
     valA = sel_FwdA(dreg, wreg, mreg, srcA, e, m);
-    
-   
+
+    uint8_t E_icode = ereg->geticode()->getOutput();
+    uint8_t E_dstM = ereg->getdstM()->getOutput();
+    E_bubble = EBubble(E_icode, E_dstM, srcA, srcB);
+
     setEInput(ereg,stat, icode,ifun, valC, valA, valB, dstE, dstM, srcA, srcB);
     return false;
 }
@@ -151,7 +152,7 @@ int64_t DecodeStage::sel_FwdA(D* dreg, W* wreg, M* mreg, uint8_t d_srcA, Execute
     if(d_srcA == mreg->getdstM()->getOutput()) return m->getm_valM(); //d_srcA == M_dstM :: m_valM
     if(d_srcA == wreg->getdstM()->getOutput()) return wreg->getvalM()->getOutput(); //d_srcA == W_dstM :: W_valM
     if(d_srcA == wreg->getdstE()->getOutput()) return wreg->getvalE()->getOutput(); //d_srcA == W_dstE :: W_valE
-    
+
     bool error = false;
     RegisterFile * regFile = RegisterFile::getInstance();
     return regFile->readRegister(d_srcA, error);
@@ -176,35 +177,14 @@ int64_t DecodeStage::FwdB(D* dreg, W* wreg, M* mreg, uint8_t d_srcB, ExecuteStag
     return regFile->readRegister(d_srcB, error);
 }
 
-/* doClockHigh
- * applies the appropriate control signal to the D
- * and E register intances
+/**
  *
- * @param: pregs - array of the pipeline register (F, D, E, M, W instances)
+ *
  */
-void DecodeStage::doClockHigh(PipeReg ** pregs)
+bool DecodeStage::EBubble(uint8_t E_icode, uint8_t E_dstM, 
+        uint8_t d_srcA, uint8_t d_srcB)
 {
-    D * dreg = (D *) pregs[DREG];
-    E * ereg = (E *) pregs[EREG];
-
-    ereg->getstat()->normal();
-    ereg->geticode()->normal();
-    ereg->getifun()->normal();
-    ereg->getvalC()->normal();
-    ereg->getvalA()->normal();
-    ereg->getvalB()->normal(); 
-    ereg->getdstE()->normal();
-    ereg->getdstM()->normal();
-    ereg->getsrcA()->normal();
-    ereg->getsrcB()->normal();
-
-    dreg->getstat()->normal();
-    dreg->geticode()->normal();
-    dreg->getifun()->normal();
-    dreg->getrA()->normal();
-    dreg->getrB()->normal();
-    dreg->getvalC()->normal();
-    dreg->getvalP()->normal();
+    return ((E_icode == IMRMOVQ || E_icode == IPOPQ) &&  (E_dstM == d_srcA || E_dstM == d_srcB));
 }
 
 /**
@@ -224,6 +204,95 @@ void DecodeStage::performPop(uint64_t &valA, uint64_t &valB)
     regs->writeRegister(rsp + 8, RSP, error);
 }
 
+/**
+ * Helper method for other classes to get the d_srcA value.
+ * @return: d_srcA
+ */
+uint8_t DecodeStage::get_srcA()
+{
+    return srcA;
+}
+
+
+/**
+ * Helper method for other classes to get the d_srcB value.
+ * @return: d_srcB.
+ */
+uint8_t DecodeStage::get_srcB()
+{
+    return srcB;
+}
+
+
+/* doClockHigh
+ * applies the appropriate control signal to the D
+ * and E register intances
+ *
+ * @param: pregs - array of the pipeline register (F, D, E, M, W instances)
+ */
+void DecodeStage::doClockHigh(PipeReg ** pregs)
+{
+    D* dreg = (D *) pregs[DREG];
+    (E_bubble) ? doEBubble(pregs) : doENormal(pregs);
+    
+    dreg->getstat()->normal();
+    dreg->geticode()->normal();
+    dreg->getifun()->normal();
+    dreg->getrA()->normal();
+    dreg->getrB()->normal();
+    dreg->getvalC()->normal();
+    dreg->getvalP()->normal();
+
+}
+
+
+/* doNormal
+ * applies the normal control signal to the D
+ * and E register intances
+ *
+ * @param: pregs - array of the pipeline register (F, D, E, M, W instances)
+ */
+void DecodeStage::doENormal(PipeReg ** pregs)
+{
+    E * ereg = (E *) pregs[EREG];
+
+    ereg->getstat()->normal();
+    ereg->geticode()->normal();
+    ereg->getifun()->normal();
+    ereg->getvalC()->normal();
+    ereg->getvalA()->normal();
+    ereg->getvalB()->normal(); 
+    ereg->getdstE()->normal();
+    ereg->getdstM()->normal();
+    ereg->getsrcA()->normal();
+    ereg->getsrcB()->normal();
+}
+
+
+
+
+
+/* doBubble
+ * applies the buble control signal to the D
+ * and E register intances
+ *
+ * @param: pregs - array of the pipeline register (F, D, E, M, W instances)
+ */
+void DecodeStage::doEBubble(PipeReg ** pregs)
+{
+    E * ereg = (E *) pregs[EREG];
+
+    ereg->getstat()->bubble(SAOK);
+    ereg->geticode()->bubble(INOP);
+    ereg->getifun()->bubble();
+    ereg->getvalC()->bubble();
+    ereg->getvalA()->bubble();
+    ereg->getvalB()->bubble(); 
+    ereg->getdstE()->bubble(RNONE);
+    ereg->getdstM()->bubble(RNONE);
+    ereg->getsrcA()->bubble(RNONE);
+    ereg->getsrcB()->bubble(RNONE);
+}
 /* setDInput
  * provides the input to potentially be stored in the D register
  * during doClockHigh
