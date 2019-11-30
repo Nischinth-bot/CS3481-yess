@@ -53,7 +53,8 @@ bool DecodeStage::doClockLow(PipeReg ** pregs, Stage ** stages)
 
     uint8_t E_icode = ereg->geticode()->getOutput();
     uint8_t E_dstM = ereg->getdstM()->getOutput();
-    E_bubble = EBubble(E_icode, E_dstM, srcA, srcB);
+    bool e_Cnd = e->gete_Cnd();
+    E_bubble = EBubble(E_icode, E_dstM, e_Cnd,  srcA, srcB);
 
     setEInput(ereg,stat, icode,ifun, valC, valA, valB, dstE, dstM, srcA, srcB);
     return false;
@@ -181,10 +182,11 @@ int64_t DecodeStage::FwdB(D* dreg, W* wreg, M* mreg, uint8_t d_srcB, ExecuteStag
  *
  *
  */
-bool DecodeStage::EBubble(uint8_t E_icode, uint8_t E_dstM, 
-        uint8_t d_srcA, uint8_t d_srcB)
+bool DecodeStage::EBubble(uint8_t E_icode, uint8_t E_dstM, bool e_Cnd, uint8_t d_srcA, uint8_t d_srcB)
 {
-    return ((E_icode == IMRMOVQ || E_icode == IPOPQ) &&  (E_dstM == d_srcA || E_dstM == d_srcB));
+    bool A =  ((E_icode == IMRMOVQ || E_icode == IPOPQ) &&  (E_dstM == d_srcA || E_dstM == d_srcB));
+    bool B = ((E_icode == IJXX && !e_Cnd));
+    return A || B;
 }
 
 /**

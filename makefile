@@ -15,11 +15,15 @@ Simulate.o : Simulate.C Simulate.h F.h D.h E.h M.h W.h FetchStage.h DecodeStage.
 ExecuteStage.h MemoryStage.h WritebackStage.h Memory.h RegisterFile.h \
 ConditionCodes.h PipeRegField.h PipeReg.h
 
-FetchStage.o : FetchStage.C FetchStage.h F.h D.h E.h M.h W.h Stage.h Status.h Debug.h 
-DecodeStage.o : DecodeStage.C DecodeStage.h F.h D.h E.h M.h W.h Stage.h Status.h Debug.h 
-ExecuteStage.o : ExecuteStage.C ExecuteStage.h F.h D.h E.h M.h W.h Stage.h Status.h Debug.h 
-MemoryStage.o : MemoryStage.C MemoryStage.h F.h D.h E.h M.h W.h Stage.h Status.h Debug.h 
-WritebackStage.o : WritebackStage.C WritebackStage.h F.h D.h E.h M.h W.h Stage.h Status.h Debug.h 
+FetchStage.o : FetchStage.h F.h D.h E.h M.h W.h Stage.h Status.h Debug.h Memory.h Tools.h RegisterFile.h \
+PipeRegField.h PipeReg.h Instructions.h 
+DecodeStage.o : DecodeStage.h F.h D.h E.h M.h W.h Stage.h Status.h Debug.h RegisterFile.h PipeRegField.h PipeReg.h \
+ExecuteStage.h MemoryStage.h DecodeStage.h Instructions.h
+ExecuteStage.o : ExecuteStage.C ExecuteStage.h F.h D.h E.h M.h W.h Stage.h Status.h Debug.h MemoryStage.h PipeRegField.h \
+PipeReg.h Instructions.h
+MemoryStage.o : MemoryStage.h F.h D.h E.h M.h W.h Stage.h Status.h Debug.h 
+WritebackStage.o :WritebackStage.h F.h D.h E.h M.h W.h Stage.h Status.h Debug.h RegisterFile.h PipeRegField.h PipeReg.h \
+Instructions.h 
 
 PipeRegField.o : PipeRegField.C PipeRegField.h
 PipeReg.o : PipeReg.C PipeReg.h

@@ -7,7 +7,7 @@ class DecodeStage: public Stage
         uint8_t srcB;
         bool E_bubble;
         
-        bool EBubble(uint8_t E_icode, uint8_t E_dstM, 
+        bool EBubble(uint8_t E_icode, uint8_t E_dstM, bool e_Cnd, 
         uint8_t d_srcA, uint8_t d_srcB);
         
         void performPop(uint64_t &valA, uint64_t &valB);

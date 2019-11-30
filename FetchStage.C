@@ -38,6 +38,7 @@ bool FetchStage::doClockLow(PipeReg ** pregs, Stage ** stages)
     E* ereg = (E *) pregs[EREG];
 
     DecodeStage * d = (DecodeStage *) stages[DSTAGE];
+    ExecuteStage * e = (ExecuteStage *) stages[ESTAGE];
 
     uint64_t icode = 0, ifun = 0,  valP = 0;
     int64_t valC = 0;
@@ -60,9 +61,12 @@ bool FetchStage::doClockLow(PipeReg ** pregs, Stage ** stages)
     f_pc = predictPC(icode, valC, valP);
     freg->getpredPC()->setInput(f_pc);
 
+    uint8_t E_icode = ereg->geticode()->getOutput();
+    bool e_cnd = e->gete_Cnd();
     F_stall = FStall(ereg, d);
     D_stall = F_stall;
-  
+    D_bubble = doDBubble(E_icode, e_cnd);
+
     if(!D_stall) setDInput(dreg, stat, icode, ifun, rA, rB, valC, valP);
     return false;
 }
@@ -257,6 +261,18 @@ bool FetchStage::mem_error(uint32_t addr)
     return (addr < 0 || addr > MEMSIZE);
 }
 
+
+/**
+ * @param: E_icode 
+ * @param: e_cnd
+ * @return: True if D register should be bubbled at the end of the curent clock cycle.
+ */
+bool FetchStage::doDBubble(uint8_t E_icode, bool e_Cnd)
+{
+    return (E_icode == IJXX && !e_Cnd);
+}
+
+
 /* doClockHigh
  * applies the appropriate control signal to the F
  * and D register intances
@@ -265,11 +281,42 @@ bool FetchStage::mem_error(uint32_t addr)
  */
 void FetchStage::doClockHigh(PipeReg ** pregs)
 {
-    if(D_stall) {doDStall(pregs);}
-    else{doDNormal(pregs);}
+    if(D_stall) {
+        doDStall(pregs);
+    }
+    else if (D_bubble) {
+        doDBubble(pregs);
+    }
+    else{
+        doDNormal(pregs);
+    }
+
     F* freg = (F *) pregs[FREG];
-    if(F_stall) {freg->getpredPC()->stall();}
-    else {freg->getpredPC()->normal();}
+
+    if(F_stall) {
+        freg->getpredPC()->stall();
+    }
+    else {
+        freg->getpredPC()->normal();
+    }
+}
+
+
+/**
+ * Bubble doClockHigh behavior for D register.
+ * @param: pregs - array of the pipeline register
+ */
+void FetchStage::doDBubble(PipeReg ** pregs)
+{
+    D * dreg = (D *) pregs[DREG];
+    dreg->getstat()->bubble(SAOK);
+    dreg->geticode()->bubble(INOP);
+    dreg->getifun()->bubble();
+    dreg->getrA()->bubble(RNONE);
+    dreg->getrB()->bubble(RNONE);
+    dreg->getvalC()->bubble();
+    dreg->getvalP()->bubble();
+
 }
 
 /**

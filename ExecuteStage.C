@@ -19,10 +19,6 @@
 #include "ExecuteStage.h"
 
 void clearCC(ConditionCodes* codes); //LOCAL HELPER METHOD
-bool M_bubble = false;
-bool Cnd = false;
-int64_t valE = 0;
-uint8_t dstE = RNONE;
 
 /*
  * doClockLow:
@@ -325,6 +321,13 @@ bool ExecuteStage::Cond(uint8_t icode, uint8_t ifun)
         }
     }
 }
+
+
+bool ExecuteStage::gete_Cnd()
+{
+    return Cnd;
+}
+
 
 bool ExecuteStage::calculateControlSignals(MemoryStage * mptr, W* wreg)
 {

@@ -13,6 +13,7 @@ class FetchStage: public Stage
         void getRegIds(uint64_t f_pc, uint8_t icode, uint8_t &rA, uint8_t &rB);
         void doDNormal(PipeReg ** pregs);
         void doDStall(PipeReg ** pregs);
+        void doDBubble(PipeReg ** pregs);
         
         uint64_t selectPC(F* freg, M* mreg, W* wreg);
         uint64_t  predictPC(uint64_t f_icode, uint64_t f_valC, uint64_t f_valP);
@@ -29,9 +30,11 @@ class FetchStage: public Stage
         bool DStall(E* ereg, DecodeStage * d);
         bool need_regids(uint64_t f_icode);
         bool needValC(uint64_t f_icode);
-
+        bool doDBubble(uint8_t E_icode, bool e_cnd);
+        
         bool F_stall;
         bool D_stall;
+        bool D_bubble;
 
     public:
         bool doClockLow(PipeReg ** pregs, Stage ** stages);
