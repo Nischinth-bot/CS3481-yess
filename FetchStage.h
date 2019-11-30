@@ -26,11 +26,11 @@ class FetchStage: public Stage
         
         bool instr_valid(uint8_t icode);
         bool mem_error(uint32_t addr);
-        bool FStall(E* ereg, DecodeStage * d);
-        bool DStall(E* ereg, DecodeStage * d);
+        bool FStall(E* ereg, DecodeStage * d, uint8_t D_icode, uint8_t E_icode, uint8_t M_icode);
         bool need_regids(uint64_t f_icode);
         bool needValC(uint64_t f_icode);
-        bool doDBubble(uint8_t E_icode, bool e_cnd);
+        bool doDBubble(uint8_t D_icode, uint8_t E_icode, 
+        uint8_t M_icode, uint8_t E_dstM,bool e_cnd, uint8_t d_srcA, uint8_t d_srcB);
         
         bool F_stall;
         bool D_stall;

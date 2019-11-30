@@ -36,6 +36,7 @@ bool FetchStage::doClockLow(PipeReg ** pregs, Stage ** stages)
     F * freg = (F *) pregs[FREG];
     D * dreg = (D *) pregs[DREG];
     E* ereg = (E *) pregs[EREG];
+    M* mreg = (M *) pregs[MREG];
 
     DecodeStage * d = (DecodeStage *) stages[DSTAGE];
     ExecuteStage * e = (ExecuteStage *) stages[ESTAGE];
@@ -61,11 +62,18 @@ bool FetchStage::doClockLow(PipeReg ** pregs, Stage ** stages)
     f_pc = predictPC(icode, valC, valP);
     freg->getpredPC()->setInput(f_pc);
 
+    
+    uint8_t D_icode = dreg->geticode()->getOutput();
     uint8_t E_icode = ereg->geticode()->getOutput();
+    uint8_t M_icode = mreg->geticode()->getOutput();
+    uint8_t E_dstM = ereg->getdstM()->getOutput();
+    uint8_t d_srcA = d->get_srcA();
+    uint8_t d_srcB = d->get_srcB();
     bool e_cnd = e->gete_Cnd();
-    F_stall = FStall(ereg, d);
+
+    F_stall = FStall(ereg, d, D_icode, E_icode, M_icode);
     D_stall = F_stall;
-    D_bubble = doDBubble(E_icode, e_cnd);
+    D_bubble = doDBubble(D_icode, E_icode, M_icode, E_dstM, e_cnd, d_srcA, d_srcB);
 
     if(!D_stall) setDInput(dreg, stat, icode, ifun, rA, rB, valC, valP);
     return false;
@@ -107,7 +115,7 @@ bool FetchStage::need_regids(uint64_t f_icode)
 }
 /**
  * needValC
- * Simulator of the need_regids HCL
+ * Simulator of the need_valC HCL
  * @param: f_icode
  * @return: true if f_icode denotes an instruction that needs valC
  */
@@ -121,7 +129,12 @@ bool FetchStage::needValC(uint64_t f_icode)
 
 
 /**
- *
+ * @param: f_pc : The current PC value.
+ * @param: nregids: Boolean indicating whether the instruction 
+ * in FetchStage requires register ids for its execution.
+ * @param: nvalc: Boolean indicating whether the instruction in FetchStage 
+ * requires valC for its execution.
+ * @return: The appropriate valP value considering the current instruction.
  */
 uint64_t FetchStage::PCincrement(uint64_t f_pc, bool nregids, bool nvalc)
 {
@@ -135,7 +148,7 @@ uint64_t FetchStage::PCincrement(uint64_t f_pc, bool nregids, bool nvalc)
  *predPC
  *Simulator of the predPC HCL
  *@param: f_icode, f_valC, f_valP
- *@return: the correct PC value 
+ *@return: the predicted PC value after execution of the current instruction.
  */
 uint64_t FetchStage::predictPC(uint64_t f_icode, uint64_t f_valC, uint64_t f_valP)
 {
@@ -189,7 +202,7 @@ uint64_t FetchStage::buildValC(uint64_t f_pc, uint8_t icode)
 
 /**
  * @param: f_icode
- * @return: true if f_icode is a valid instruction
+ * @return: true if f_icode represents a valid instruction.
  */
 bool FetchStage::instr_valid(uint8_t f_icode)
 {
@@ -202,8 +215,9 @@ bool FetchStage::instr_valid(uint8_t f_icode)
 
 
 /**
+ * Method to calculate f_stat when the clock is low.
  * @param: f_icode
- * @param: addr:  address of pc
+ * @param: addr:  the current address of PC
  * @return: appropriate stat value depending on icode and addr.
  */
 uint8_t FetchStage::f_stat(uint8_t f_icode, uint32_t addr)
@@ -239,17 +253,23 @@ uint8_t FetchStage::f_ifun(uint8_t ifun, uint32_t addr)
 
 }
 
-bool FetchStage::FStall(E* ereg, DecodeStage * d)
-{
-    uint8_t E_icode = ereg->geticode()->getOutput();
-    uint32_t E_dstM = ereg->getdstM()->getOutput();
-    return (E_icode == IMRMOVQ || E_icode == IPOPQ) 
-        && (E_dstM == d->get_srcA() || E_dstM == d->get_srcB());
-}
 
-bool FetchStage:: DStall(E* ereg, DecodeStage * d)
+/**
+ * @param: ereg : A pointer to an instance of the E register class.
+ * @param: d : A pointer to an instance of the DecodeStage class.
+ * @param: D_icode : The icode value in the D register.
+ * @param: E_icode : The icode value in the E register.
+ * @param: M_icode : The icode value in the M register.
+ * @return: True if the Stall control signal should be applied to the 
+ * Fetch register at the end of the current clock cycle.
+ */
+bool FetchStage::FStall(E* ereg, DecodeStage * d, uint8_t D_icode, uint8_t E_icode, uint8_t M_icode)
 {
-    return FStall(ereg, d);
+    uint32_t E_dstM = ereg->getdstM()->getOutput();
+    bool A =  (E_icode == IMRMOVQ || E_icode == IPOPQ) 
+        && (E_dstM == d->get_srcA() || E_dstM == d->get_srcB());
+    bool B = (D_icode == IRET || E_icode == IRET || M_icode == IRET);
+    return A || B;
 }
 
 /**
@@ -263,13 +283,26 @@ bool FetchStage::mem_error(uint32_t addr)
 
 
 /**
- * @param: E_icode 
- * @param: e_cnd
+ * Method to calculate D_bubble when the clock is low.
+ * @param: D_icode : icode value in the D register.
+ * @param: E_icode : icode value in the E register.
+ * @param: M_icode : icode value in the M register.
+ * @param: E_dstM : dstM value in the E register.
+ * @param: e_Cnd  : Cnd value calculated by the ExecuteStage class in the current
+ * clock cycle.
+ * @param: d_srcA : srcA value calculated by the DecodeStage class in the current 
+ * clock cycle.
+ * @param: d_srcB : srcB value calculated by the DecodeStage class in the current
+ * clock cycle.
  * @return: True if D register should be bubbled at the end of the curent clock cycle.
  */
-bool FetchStage::doDBubble(uint8_t E_icode, bool e_Cnd)
+bool FetchStage::doDBubble(uint8_t D_icode, uint8_t E_icode, 
+uint8_t M_icode, uint8_t E_dstM, bool e_Cnd, uint8_t d_srcA, uint8_t d_srcB)
 {
-    return (E_icode == IJXX && !e_Cnd);
+    bool A =  (E_icode == IJXX && !e_Cnd);
+    bool B = (D_icode == IRET || E_icode == IRET || M_icode == IRET);
+    bool C = !((E_icode == IMRMOVQ || E_icode == IPOPQ) && (E_dstM == d_srcA || E_dstM == d_srcB));
+    return (A || B) && C;
 }
 
 
@@ -281,11 +314,11 @@ bool FetchStage::doDBubble(uint8_t E_icode, bool e_Cnd)
  */
 void FetchStage::doClockHigh(PipeReg ** pregs)
 {
-    if(D_stall) {
-        doDStall(pregs);
-    }
-    else if (D_bubble) {
+    if(D_bubble) {
         doDBubble(pregs);
+    }
+    else if (D_stall) {
+        doDStall(pregs);
     }
     else{
         doDNormal(pregs);
@@ -352,10 +385,6 @@ void FetchStage::doDStall(PipeReg ** pregs)
     dreg->getvalC()->stall();
     dreg->getvalP()->stall();
 }
-
-
-
-
 
 /* setDInput
  * provides the input to potentially be stored in the D register
