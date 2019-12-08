@@ -1,0 +1,30 @@
+         .pos 0
+         irmovq stack, %rsp
+         irmovq list, %rdi
+         irmovq 8, %rcx
+         xorq %rax, %rax
+         xorq %rbx, %rbx
+         call addList
+         halt
+
+addList: 
+         mrmovq (%rdi), %rbx
+         andq %rbx, %rbx
+         je done
+         addq %rbx, %rax
+         addq %rcx, %rdi
+         jmp addList           
+done:    ret  
+
+         .align 8
+list:    .quad 2
+         .quad 5
+         .quad -1 
+         .quad 1
+         .quad 2
+         .quad 4
+         .quad 5
+         .quad 0  #indicates the end of the list
+#
+         .pos 0x200
+stack:
