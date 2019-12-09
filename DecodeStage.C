@@ -139,7 +139,7 @@ uint8_t DecodeStage::dst_M(D * dreg, uint8_t icode)
 }
 
 /**
- * Simplified Sel + FwdA HCL.
+ * Completed Sel + FwdA HCL.
  * @param: dreg -  A pointer to an instance of the D pipe register class.
  * @return: d_rvalA 
  */
@@ -161,7 +161,7 @@ int64_t DecodeStage::sel_FwdA(D* dreg, W* wreg, M* mreg, uint8_t d_srcA, Execute
 
 
 /**
- * Simplified FwdB 
+ * Completed FwdB 
  * @param: derg - A pointer to an instance of the D Pipe register class.
  * @return: d_rvalB
  */
@@ -179,31 +179,23 @@ int64_t DecodeStage::FwdB(D* dreg, W* wreg, M* mreg, uint8_t d_srcB, ExecuteStag
 }
 
 /**
- *
- *
- */
+ * @param: E_icode: The icode value in the E regiser.
+ * @param: E_dstM: The dstM value in the E register.
+ * @param: e_Cnd: The Cnd value calculated by the ExecuteStage
+ * class this clock cycle.
+ * @param: d_srcA: The srcA value calculated by the DecodeStage
+ * class this clock cycle.
+ * @param: d_srcB: The srcB value calculated by the ExecuteStage
+ * class this clock cycle.
+ * @return: True if the E register should be bubbled at the end
+ * of the current clock cycle.
+ **/
+
 bool DecodeStage::EBubble(uint8_t E_icode, uint8_t E_dstM, bool e_Cnd, uint8_t d_srcA, uint8_t d_srcB)
 {
     bool A =  ((E_icode == IMRMOVQ || E_icode == IPOPQ) &&  (E_dstM == d_srcA || E_dstM == d_srcB));
     bool B = ((E_icode == IJXX && !e_Cnd));
     return A || B;
-}
-
-/**
- * Specialized method to perform pop operation. Puts R[%rsp] in valA and valB.
- * Updates the stack pointer.
- * @param: valA: Reference to the valA variable.
- * @paramm: valB: Reference to the valB variable.
- */
-void DecodeStage::performPop(uint64_t &valA, uint64_t &valB)
-{
-    RegisterFile * regs = RegisterFile::getInstance();
-    bool error = false;
-    uint64_t rsp = regs->readRegister(RSP, error);
-    valA = rsp;
-    valB = rsp;
-    error = false;
-    regs->writeRegister(rsp + 8, RSP, error);
 }
 
 /**
@@ -215,7 +207,6 @@ uint8_t DecodeStage::get_srcA()
     return srcA;
 }
 
-
 /**
  * Helper method for other classes to get the d_srcB value.
  * @return: d_srcB.
@@ -224,7 +215,6 @@ uint8_t DecodeStage::get_srcB()
 {
     return srcB;
 }
-
 
 /* doClockHigh
  * applies the appropriate control signal to the D
@@ -270,10 +260,6 @@ void DecodeStage::doENormal(PipeReg ** pregs)
     ereg->getsrcB()->normal();
 }
 
-
-
-
-
 /* doBubble
  * applies the buble control signal to the D
  * and E register intances
@@ -295,6 +281,7 @@ void DecodeStage::doEBubble(PipeReg ** pregs)
     ereg->getsrcA()->bubble(RNONE);
     ereg->getsrcB()->bubble(RNONE);
 }
+
 /* setDInput
  * provides the input to potentially be stored in the D register
  * during doClockHigh

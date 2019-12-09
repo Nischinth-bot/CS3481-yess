@@ -10,7 +10,6 @@ class DecodeStage: public Stage
         bool EBubble(uint8_t E_icode, uint8_t E_dstM, bool e_Cnd, 
         uint8_t d_srcA, uint8_t d_srcB);
         
-        void performPop(uint64_t &valA, uint64_t &valB);
         void doEBubble(PipeReg ** pregs);
         void doENormal(PipeReg ** pregs);
         void setEInput(E * dreg, uint64_t stat, uint64_t icode, uint64_t ifun, 

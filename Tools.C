@@ -226,18 +226,9 @@ uint8_t Tools::sign(uint64_t source)
  */
 bool Tools::addOverflow(uint64_t op1, uint64_t op2)
 {
-    if(op1 >> 63 == 0 && op2 >> 63 == 0) 
-    {
-        uint64_t sum = op1 + op2;
-        return (sum >> 63 == 1);
-    }
-    if(op1 >> 63 == 1 && op2 >> 63 == 1)
-    {
-        uint64_t sum = op1 + op2;
-        return (sum >> 63 == 0);
-    }
+    if(sign(op1) == 0 && sign(op2) == 0) return (sign(op1 + op2) == 1);
+    if(sign(op1) == 1 && sign(op2) == 1) return (sign(op1 + op2) == 0);
     return false;
-
 }
 
 /**
@@ -256,16 +247,8 @@ bool Tools::addOverflow(uint64_t op1, uint64_t op2)
  */
 bool Tools::subOverflow(uint64_t op1, uint64_t op2)
 {
-    if(op1 >> 63 == 0 && op2 >> 63 == 1)
-    {
-        uint64_t diff = op2 - op1;
-        return (diff >> 63 == 0);
-    }
-    if(op1 >> 63 == 1 && op2 >> 63 == 0)
-    {
-        uint64_t diff = op2 - op1;
-        return (diff >> 63 == 1);
-    }
+    if(sign(op1) == 0 && sign(op2) == 1) return (sign(op2 - op1) == 0);
+    if(sign(op1) == 1 && sign(op2) == 0) return (sign(op2 - op1) == 1);
     return false;
 }
 

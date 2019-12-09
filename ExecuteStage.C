@@ -14,12 +14,11 @@
 #include "Debug.h"
 #include "MemoryStage.h"
 #include "Instructions.h"
-#include "Tools.h"
 #include "ConditionCodes.h"
+#include "Tools.h"
 #include "ExecuteStage.h"
 
-void clearCC(ConditionCodes* codes); //LOCAL HELPER METHOD
-
+void clearCC(ConditionCodes* codes); //HELPER METHOD
 /*
  * doClockLow:
  * Performs the Fetch stage combinational logic that is performed when
@@ -55,62 +54,6 @@ bool ExecuteStage::doClockLow(PipeReg ** pregs, Stage ** stages)
     int64_t valA = ereg->getvalA()->getOutput();
     setMInput(mreg, stat, icode, Cnd, valE, valA, dstE, dstM);
     return 0;
-}
-
-/* doClockHigh
- * applies the appropriate control signal to the F
- * and D register intances
- *
- * @param: pregs - array of the pipeline register (F, D, E, M, W instances)
- */
-void ExecuteStage::doClockHigh(PipeReg ** pregs)
-{
-    E * ereg = (E *) pregs[EREG];
-    M * mreg = (M*) pregs[MREG];
-
-    ereg->getstat()->normal();
-    ereg->geticode()->normal();
-    ereg->getifun()->normal();
-    ereg->getvalC()->normal();
-    ereg-> getvalA() -> normal();
-    ereg-> getvalB() -> normal();
-    ereg-> getdstE() -> normal();
-    ereg-> getsrcA() -> normal();
-    ereg-> getsrcB() -> normal();
-
-    if(!M_bubble)
-    {
-        mreg->getstat()->normal();
-        mreg->geticode()->normal();
-        mreg->getCnd()->normal();
-        mreg->getvalE()->normal();
-        mreg->getvalA()->normal();
-        mreg->getdstE()->normal();
-        mreg->getdstM()->normal(); 
-    }
-    else
-    {
-        mreg->getstat()->bubble(SAOK);
-        mreg->geticode()->bubble(INOP);
-        mreg->getCnd()->bubble();
-        mreg->getvalE()->bubble();
-        mreg->getvalA()->bubble();
-        mreg->getdstE()->bubble(RNONE);
-        mreg->getdstM()->bubble(RNONE); 
-    }
-
-}
-
-void ExecuteStage::setMInput(M* mreg, uint64_t stat, uint64_t icode, uint64_t Cnd, uint64_t valE, 
-        uint64_t valA, uint64_t dstE, uint64_t dstM)
-{
-    mreg->getstat()->setInput(stat);
-    mreg->geticode()->setInput(icode);
-    mreg->getCnd()-> setInput(Cnd);
-    mreg->getvalE()->setInput(valE);
-    mreg->getvalA()->setInput(valA);
-    mreg->getdstE()->setInput(dstE);
-    mreg->getdstM()->setInput(dstM);
 }
 
 /**
@@ -250,16 +193,6 @@ int64_t ExecuteStage::ALU(E* ereg)
     return B + A; //ANDQ
 }
 
-int64_t ExecuteStage::gete_valE()
-{
-    return valE;
-}
-
-uint8_t ExecuteStage::gete_dstE()
-{
-    return dstE;
-}
-
 /**
  *Simulator for the Cond hardware.
  @param: E_icode 
@@ -322,13 +255,40 @@ bool ExecuteStage::Cond(uint8_t icode, uint8_t ifun)
     }
 }
 
+/**
+ * Public helper method.
+ * @return: e_valE
+ */
+int64_t ExecuteStage::gete_valE()
+{
+    return valE;
+}
 
+/**
+ * Public helper method.
+ * @return: e_dstE
+ */
+uint8_t ExecuteStage::gete_dstE()
+{
+    return dstE;
+}
+
+/**
+ * Public helper method.
+ * @returb: e_Cnd
+ */
 bool ExecuteStage::gete_Cnd()
 {
     return Cnd;
 }
 
 
+/**
+ * @param: mptr: A pointer to an instance of the MemoryStage class.
+ * @param: wreg: A pointer to an instance of the Writeback register class.
+ * @return: True if the M register should be bubbled at the end
+ * of the current clock cycle.
+ */
 bool ExecuteStage::calculateControlSignals(MemoryStage * mptr, W* wreg)
 {
     uint8_t m_stat = mptr->getm_stat();
@@ -349,4 +309,62 @@ void clearCC(ConditionCodes* codes)
     codes->setConditionCode(0,ZF,error);
     codes->setConditionCode(0,SF,error);
 }
+
+
+/* doClockHigh
+ * applies the appropriate control signal to the F
+ * and D register intances
+ *
+ * @param: pregs - array of the pipeline register (F, D, E, M, W instances)
+ */
+void ExecuteStage::doClockHigh(PipeReg ** pregs)
+{
+    E * ereg = (E *) pregs[EREG];
+    M * mreg = (M*) pregs[MREG];
+
+    ereg->getstat()->normal();
+    ereg->geticode()->normal();
+    ereg->getifun()->normal();
+    ereg->getvalC()->normal();
+    ereg-> getvalA() -> normal();
+    ereg-> getvalB() -> normal();
+    ereg-> getdstE() -> normal();
+    ereg-> getsrcA() -> normal();
+    ereg-> getsrcB() -> normal();
+
+    if(!M_bubble)
+    {
+        mreg->getstat()->normal();
+        mreg->geticode()->normal();
+        mreg->getCnd()->normal();
+        mreg->getvalE()->normal();
+        mreg->getvalA()->normal();
+        mreg->getdstE()->normal();
+        mreg->getdstM()->normal(); 
+    }
+    else
+    {
+        mreg->getstat()->bubble(SAOK);
+        mreg->geticode()->bubble(INOP);
+        mreg->getCnd()->bubble();
+        mreg->getvalE()->bubble();
+        mreg->getvalA()->bubble();
+        mreg->getdstE()->bubble(RNONE);
+        mreg->getdstM()->bubble(RNONE); 
+    }
+
+}
+
+void ExecuteStage::setMInput(M* mreg, uint64_t stat, uint64_t icode, uint64_t Cnd, uint64_t valE, 
+        uint64_t valA, uint64_t dstE, uint64_t dstM)
+{
+    mreg->getstat()->setInput(stat);
+    mreg->geticode()->setInput(icode);
+    mreg->getCnd()-> setInput(Cnd);
+    mreg->getvalE()->setInput(valE);
+    mreg->getvalA()->setInput(valA);
+    mreg->getdstE()->setInput(dstE);
+    mreg->getdstM()->setInput(dstM);
+}
+
 

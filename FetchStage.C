@@ -180,9 +180,10 @@ void FetchStage::getRegIds(uint64_t f_pc, uint8_t icode, uint8_t &rA, uint8_t &r
 }
 
 /**
+ *Builds valC depending on the instruction.
  *@param: f_pc - The current address of the program counter.
- @param: icode - The icode of the current instruction
- @return: valC - an 8 byte constant word
+  @param: icode - The icode of the current instruction
+  @return: valC - an 8 byte constant word
  */
 uint64_t FetchStage::buildValC(uint64_t f_pc, uint8_t icode)
 {
@@ -201,6 +202,7 @@ uint64_t FetchStage::buildValC(uint64_t f_pc, uint8_t icode)
 
 
 /**
+ * Helper method.
  * @param: f_icode
  * @return: true if f_icode represents a valid instruction.
  */
@@ -230,6 +232,7 @@ uint8_t FetchStage::f_stat(uint8_t f_icode, uint32_t addr)
 }
 
 /**
+ * Helper method.
  * @param: f_icode
  * @param: addr: address of pc
  * @return: INOP if address is invalid, else f_icode.
@@ -242,6 +245,7 @@ uint8_t FetchStage::f_icode(uint8_t f_icode, uint32_t addr)
 
 
 /**
+ * Helper method.
  * @param: ifun: function code of the current instruction.
  * @param: addr: address of the pc.
  * @return: FNONE if address is invalid, else ifun.
@@ -253,6 +257,15 @@ uint8_t FetchStage::f_ifun(uint8_t ifun, uint32_t addr)
 
 }
 
+/**
+ * Helper method.
+ * @param: addr: the address to check.
+ * @return: true if address is invalid.
+ */
+bool FetchStage::mem_error(uint32_t addr)
+{
+    return (addr < 0 || addr > MEMSIZE);
+}
 
 /**
  * @param: ereg : A pointer to an instance of the E register class.
@@ -270,15 +283,6 @@ bool FetchStage::FStall(E* ereg, DecodeStage * d, uint8_t D_icode, uint8_t E_ico
         && (E_dstM == d->get_srcA() || E_dstM == d->get_srcB());
     bool B = (D_icode == IRET || E_icode == IRET || M_icode == IRET);
     return A || B;
-}
-
-/**
- * @param: addr: the address to check.
- * @return: true if address is invalid.
- */
-bool FetchStage::mem_error(uint32_t addr)
-{
-    return (addr < 0 || addr > MEMSIZE);
 }
 
 

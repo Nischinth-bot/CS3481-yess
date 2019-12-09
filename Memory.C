@@ -51,13 +51,8 @@ uint64_t Memory::getLong(int32_t address, bool & imem_error)
 {
     if(address >= 0 && address < MEMSIZE  && address % 8 == 0 )
     {
-        imem_error = false;
-        uint8_t arr[8];
-        for(int i = 0; i < 8; i ++)
-        {
-            arr[i] = mem[address + i];
-        }
-        return Tools::buildLong(arr);
+        imem_error = false; 
+        return Tools::buildLong(&mem[address]);
     }
     imem_error = true;
     return 0;
@@ -78,7 +73,7 @@ uint8_t Memory::getByte(int32_t address, bool & imem_error)
     if(address >= 0 && address < MEMSIZE)
     {
         imem_error = false;
-        return Tools::getByte(mem[address],0);
+        return mem[address];
     }
     imem_error = true;
     return 0;

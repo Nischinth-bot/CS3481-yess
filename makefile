@@ -19,9 +19,10 @@ FetchStage.o : FetchStage.h F.h D.h E.h M.h W.h Stage.h Status.h Debug.h Memory.
 PipeRegField.h PipeReg.h Instructions.h 
 DecodeStage.o : DecodeStage.h F.h D.h E.h M.h W.h Stage.h Status.h Debug.h RegisterFile.h PipeRegField.h PipeReg.h \
 ExecuteStage.h MemoryStage.h DecodeStage.h Instructions.h
-ExecuteStage.o : ExecuteStage.C ExecuteStage.h F.h D.h E.h M.h W.h Stage.h Status.h Debug.h MemoryStage.h PipeRegField.h \
-PipeReg.h Instructions.h
-MemoryStage.o : MemoryStage.h F.h D.h E.h M.h W.h Stage.h Status.h Debug.h 
+ExecuteStage.o : ExecuteStage.h F.h D.h E.h M.h W.h Stage.h Status.h Debug.h MemoryStage.h PipeRegField.h \
+PipeReg.h Instructions.h Tools.h ConditionCodes.h RegisterFile.h
+MemoryStage.o : MemoryStage.h F.h D.h E.h M.h W.h Stage.h Status.h Debug.h RegisterFile.h PipeRegField.h PipeReg.h \
+Instructions.h Memory.h
 WritebackStage.o :WritebackStage.h F.h D.h E.h M.h W.h Stage.h Status.h Debug.h RegisterFile.h PipeRegField.h PipeReg.h \
 Instructions.h 
 
