@@ -1,0 +1,35 @@
+          .pos 0
+main:     irmovq stack, %rsp    
+          irmovq $20, %rdi      
+          
+          irmovq fibolst, %rsi
+          irmovq 8, %r8
+          irmovq 1, %rbx
+          irmovq 1, %rcx
+          
+          call fibo
+          halt
+# fibo 
+# Computes fibonacci numbers
+# param: %rdi - contains a count of the 
+#        number of fibonacci numbers to 
+#        compute
+# param: %rsi - contains the starting 
+#        address in memory of where to
+#        store the numbers
+#
+fibo:     rmmovq %rax, (%rsi)
+          rrmovq %rax, %rdx
+          addq %rbx, %rax
+          addq %rbx, %rax
+          subq %rbx, %rdi
+          jl done
+          jmp fibo
+          
+done:     
+          ret
+#
+          .align 8
+fibolst:  .quad 0 
+          .pos 0x400 
+stack:    
