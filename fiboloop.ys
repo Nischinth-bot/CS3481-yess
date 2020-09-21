@@ -19,13 +19,13 @@ main:     irmovq stack, %rsp
 #        store the numbers
 #
 fibo:     rmmovq %rax, (%rsi)
-          rrmovq %rax, %rdx
-          addq %rbx, %rax
-          addq %rbx, %rax
+          addq %rcx, %rax
+          rrmovq %rax, %rcx
+          
+          addq %r8, %rsi
           subq %rbx, %rdi
           jl done
           jmp fibo
-          
 done:     
           ret
 #
